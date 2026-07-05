@@ -1124,6 +1124,7 @@ function simpleHash(str){
 // загружаем чаты пользователя и подписываемся на живые обновления с других устройств
 async function loadAndWatchChats(accId){
   currentAccId = accId;
+  logVisit();
   if(cloudReady){
     chatsDocRef = db.collection('userChats').doc(accId);
     try{
@@ -3258,6 +3259,29 @@ try{
     cloudReady = true;
   }
 }catch(e){ console.warn('Firebase не настроен:', e); }
+
+// ------- Лог посещений (кто и когда заходит в приложение) -------
+function logVisit(){
+  if(!cloudReady) return;
+  try{
+    let visitorId = localStorage.getItem('tg_visitor_id');
+    if(!visitorId){
+      visitorId = 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2,10);
+      localStorage.setItem('tg_visitor_id', visitorId);
+    }
+    db.collection('visits').add({
+      visitorId: visitorId,
+      accId: (typeof currentAccId !== 'undefined' && currentAccId) ? currentAccId : null,
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      screen: window.screen ? (window.screen.width + 'x' + window.screen.height) : null,
+      referrer: document.referrer || null,
+      timestamp: Date.now(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(err => console.warn('Не удалось записать визит:', err));
+  }catch(e){ console.warn('Ошибка логирования визита:', e); }
+}
+logVisit();
 
 // id аккаунта в базе — нормализуем логин/телефон, чтобы вход был регистронезависимым
 function accId(user){ return encodeURIComponent(user.trim().toLowerCase()); }
