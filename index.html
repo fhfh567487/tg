@@ -126,7 +126,16 @@
     color:#fff; font-weight:600; font-size:18px;
     flex-shrink:0;
     background: linear-gradient(135deg,#5ec1ff,#2a8ffc);
+    position:relative;
   }
+  .online-dot{
+    position:absolute; right:0; bottom:0;
+    width:13px; height:13px; border-radius:50%;
+    background:#4cd964;
+    border:2.5px solid var(--bg-sidebar);
+    box-sizing:content-box;
+  }
+  .main-header .avatar .online-dot{ border-color: var(--bg-chat); }
   .avatar.g1{background:linear-gradient(135deg,#ff885e,#ff516a);}
   .avatar.g2{background:linear-gradient(135deg,#82d888,#2ab561);}
   .avatar.g3{background:linear-gradient(135deg,#c391ff,#7c5cff);}
@@ -794,26 +803,8 @@
 
 <script>
 /* ---------------- DATA ---------------- */
-let localChats = [
-  {id:1, name:'Избранное', preview:'Заметка себе: купить билеты', time:'12:04', unread:0, avatarClass:'g1', avatarText:'✈️', pinned:true, persona:null, messages:[
-    {out:true, text:'Не забыть купить билеты на поезд', time:'12:04', status:'read'}
-  ]},
-  {id:2, name:'Анна Смирнова', preview:'Ты видел новый дизайн?', time:'11:47', unread:2, avatarClass:'g2', avatarText:'АС', pinned:false, persona:'friendly', messages:[
-    {out:false, text:'Привет! Как дела?', time:'11:40'},
-    {out:true, text:'Привет, отлично! А у тебя?', time:'11:42', status:'read'},
-    {out:false, text:'Ты видел новый дизайн?', time:'11:47'}
-  ]},
-  {id:3, name:'Рабочий чат', preview:'Игорь: Созвон в 15:00', time:'10:22', unread:5, avatarClass:'g3', avatarText:'РЧ', pinned:false, persona:'formal', groupSender:'Игорь', messages:[
-    {out:false, text:'Игорь: Созвон в 15:00, не забудьте', time:'10:22'}
-  ]},
-  {id:4, name:'Максим Петров', preview:'Отправил подарок 🎁', time:'Вчера', unread:0, avatarClass:'g4', avatarText:'МП', pinned:false, persona:'friendly', messages:[
-    {out:false, text:'Смотри что я тебе отправил 🎁', time:'Вчера'},
-    {out:true, text:'Ого, спасибо большое!', time:'Вчера', status:'read'}
-  ]},
-  {id:5, name:'Family 👨‍👩‍👧', preview:'Мама: Не забудь позвонить', time:'Пн', unread:0, avatarClass:'g5', avatarText:'F', pinned:false, persona:'family', groupSender:'Мама', messages:[
-    {out:false, text:'Мама: Не забудь позвонить бабушке', time:'Пн'}
-  ]}
-];
+// демо-чаты с ИИ-ботами убраны: новый аккаунт стартует с пустым списком чатов
+let localChats = [];
 // directChats — настоящие переписки с реальными людьми, живут в облаке и синхронизируются между обоими участниками
 let directChats = [];
 // chats — то, что реально показывается в списке: локальные демо-чаты с ботами + настоящие личные чаты
@@ -969,7 +960,51 @@ function setLanguage(lang){
 }
 // текст статуса собеседника в шапке чата
 function chatStatusLabel(chat){
-  return chat.real ? t('statusReal') : (chat.persona ? t('statusOnline') : t('statusFavorites'));
+  if(chat.real) return presenceStatusText(chat.partnerOnline, chat.partnerLastActive);
+  return chat.persona ? t('statusOnline') : t('statusFavorites');
+}
+
+/* ---------------- ПРИСУТСТВИЕ (ОНЛАЙН / БЫЛ В СЕТИ) ---------------- */
+// период без "сердцебиения", после которого считаем собеседника оффлайн (мс)
+const PRESENCE_ONLINE_TIMEOUT = 30000;
+let presenceHeartbeatTimer = null;
+
+function markPresence(accId, online){
+  if(!cloudReady || !accId) return;
+  db.collection('accounts').doc(accId).set({ presence: { online, lastActive: Date.now() } }, {merge:true}).catch(()=>{});
+}
+// периодически сообщаем серверу, что мы всё ещё на связи, пока вкладка открыта и видима
+function startPresenceHeartbeat(accId){
+  if(!cloudReady || !accId) return;
+  const beat = () => { if(document.visibilityState === 'visible') markPresence(accId, true); };
+  beat();
+  if(presenceHeartbeatTimer) clearInterval(presenceHeartbeatTimer);
+  presenceHeartbeatTimer = setInterval(beat, 15000);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') beat(); });
+  window.addEventListener('beforeunload', () => markPresence(accId, false));
+  window.addEventListener('pagehide', () => markPresence(accId, false));
+}
+function stopPresenceHeartbeat(accId){
+  if(presenceHeartbeatTimer){ clearInterval(presenceHeartbeatTimer); presenceHeartbeatTimer = null; }
+  if(accId) markPresence(accId, false);
+}
+// текст статуса ("в сети" / "был(а) в сети ...") по данным присутствия собеседника
+function presenceStatusText(online, lastActive){
+  const ru = currentLang === 'ru';
+  const isRecentBeat = lastActive && (Date.now() - lastActive) < PRESENCE_ONLINE_TIMEOUT;
+  if(online && isRecentBeat) return ru ? 'в сети' : 'online';
+  if(!lastActive) return ru ? 'нет на связи' : 'offline';
+  return (ru ? 'был(а) в сети ' : 'last seen ') + formatLastSeen(lastActive, ru);
+}
+function formatLastSeen(ts, ru){
+  const diffMs = Date.now() - ts;
+  const mins = Math.floor(diffMs / 60000);
+  if(mins < 1) return ru ? 'только что' : 'just now';
+  if(mins < 60) return ru ? `${mins} мин. назад` : `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if(hours < 24) return ru ? `${hours} ч. назад` : `${hours}h ago`;
+  const d = new Date(ts);
+  return d.toLocaleDateString(ru ? 'ru-RU' : 'en-US', {day:'2-digit', month:'2-digit'}) + ', ' + d.toLocaleTimeString(ru ? 'ru-RU' : 'en-US', {hour:'2-digit', minute:'2-digit'});
 }
 // обновляем все переведённые надписи в уже открытом окне чата (шапка + композер),
 // не трогая при этом сами сообщения и скролл — раньше при смене языка эти тексты
@@ -985,7 +1020,7 @@ function refreshOpenChatIfAny(){
   if(avatarEl){
     const av = chatAvatarStyleAndContent(chat);
     avatarEl.style.cssText = 'width:40px;height:40px;font-size:14px;' + av.style;
-    avatarEl.textContent = av.content;
+    avatarEl.innerHTML = av.content + onlineDotHTML(chat);
   }
   const callBtn = document.getElementById('callBtn'); if(callBtn) callBtn.title = t('call');
   const moreBtn = document.getElementById('moreBtn'); if(moreBtn) moreBtn.title = t('more');
@@ -1022,9 +1057,10 @@ async function saveChatsNow(){
   }
 }
 
-// объединяем демо-чаты с ботами и настоящие личные чаты в один список для отображения
+// объединяем локальные и настоящие личные чаты в один список для отображения
 function mergeAndRenderChats(){
   chats = [...localChats, ...directChats];
+  applyNameOverrides(chats);
   const searchInput = document.getElementById('searchInput');
   renderChatList(searchInput ? searchInput.value : '');
   if(activeChatId){
@@ -1039,32 +1075,52 @@ function watchDirectChats(accIdVal){
   if(unsubscribeDirectChats) unsubscribeDirectChats();
   unsubscribeDirectChats = db.collection('directChats')
     .where('participants', 'array-contains', accIdVal)
-    .onSnapshot(snap => {
+    .onSnapshot({includeMetadataChanges:true}, snap => {
+      // hasPendingWrites=true значит, что мы видим ещё не подтверждённую сервером собственную запись —
+      // это соответствует состоянию "отправлено" (1 галочка), пока сообщение реально не долетело
+      const isPending = snap.metadata.hasPendingWrites;
+      const chatsToMarkRead = [];
       const newDirectChats = snap.docs.map(docSnap => {
         const data = docSnap.data();
         const partnerId = data.participants.find(p => p !== accIdVal) || accIdVal;
         const partnerName = (data.participantNames && data.participantNames[partnerId]) || 'Пользователь';
-        const messages = (data.messages || []).slice().sort((a,b)=>(a.ts||0)-(b.ts||0)).map(m => ({
-          out: m.senderId === accIdVal,
-          text: m.text,
-          file: m.file || null,
-          voice: m.voice || null,
-          call: m.call || null,
-          time: m.time,
-          status: 'read'
-        }));
+        const readUpTo = data.readUpTo || {};
+        const myReadUpTo = readUpTo[accIdVal] || 0;
+        const partnerReadUpTo = readUpTo[partnerId] || 0;
+        const sortedRaw = (data.messages || []).slice().sort((a,b)=>(a.ts||0)-(b.ts||0));
+        const messages = sortedRaw.map((m, idx) => {
+          const out = m.senderId === accIdVal;
+          let status;
+          if(out){
+            if(isPending && idx === sortedRaw.length - 1) status = 'sent'; // ещё не долетело до сервера
+            else if((m.ts||0) <= partnerReadUpTo) status = 'read'; // собеседник открывал чат после этого сообщения
+            else status = 'delivered'; // долетело, но собеседник ещё не прочитал
+          }
+          return {
+            out, text: m.text, file: m.file || null, voice: m.voice || null, call: m.call || null,
+            time: m.time, ts: m.ts || 0, status
+          };
+        });
         const last = messages[messages.length-1];
         const lastPreview = last ? (last.call ? callMessagePreviewText(last.call) : (last.voice ? '🎤 ' + t('voiceMessage') : (last.file ? (last.file.type && last.file.type.startsWith('image/') ? '🖼 ' + t('photoCaption') : '📎 ' + last.file.name) : last.text))) : t('chatCreated');
-        // сохраняем ранее известный статус Premium собеседника, чтобы не мигало, пока не подгрузится актуальный
+        // сохраняем ранее известный статус Premium/аватарки/присутствия, чтобы не мигало, пока не подгрузится актуальный
         const prev = directChats.find(c => c.partnerId === partnerId);
+        const chatId = 'direct_' + docSnap.id;
+        // если этот чат сейчас открыт и в нём есть непрочитанные входящие сообщения — отметим их прочитанными
+        const lastIncoming = messages.slice().reverse().find(m => !m.out);
+        if(activeChatId === chatId && lastIncoming && lastIncoming.ts > myReadUpTo){
+          chatsToMarkRead.push(docSnap.id);
+        }
         return {
-          id: 'direct_' + docSnap.id,
+          id: chatId,
           directId: docSnap.id,
           real: true,
           partnerId,
           name: partnerName,
           partnerIsPremium: prev ? !!prev.partnerIsPremium : false,
           partnerAvatarId: prev ? (prev.partnerAvatarId || null) : null,
+          partnerOnline: prev ? !!prev.partnerOnline : false,
+          partnerLastActive: prev ? (prev.partnerLastActive || null) : null,
           preview: lastPreview,
           time: last ? last.time : '',
           unread: 0,
@@ -1091,29 +1147,57 @@ function watchDirectChats(accIdVal){
       directChats = newDirectChats;
       mergeAndRenderChats();
       refreshPartnerPremiumBadges();
+      chatsToMarkRead.forEach(directId => markDirectChatReadById(directId, accIdVal));
     }, err => console.warn('Ошибка синхронизации личных чатов:', err));
+}
+// отмечаем в общем документе чата, что мы прочитали сообщения собеседника до текущего момента —
+// именно это превращает у него "доставлено" (2 серые галочки) в "прочитано" (2 синие галочки)
+async function markDirectChatReadById(directId, accId){
+  if(!cloudReady || !directId || !accId) return;
+  try{
+    await db.collection('directChats').doc(directId).update({ ['readUpTo.' + accId]: Date.now() });
+  }catch(e){
+    try{ await db.collection('directChats').doc(directId).set({ readUpTo: { [accId]: Date.now() } }, {merge:true}); }
+    catch(e2){ console.warn('Не удалось отметить чат прочитанным:', e2); }
+  }
+}
+function markDirectChatRead(chat){
+  if(!chat || !chat.real) return;
+  markDirectChatReadById(chat.directId, currentAccId);
 }
 // вспомогательное состояние для определения новых входящих сообщений (для звука уведомления)
 let directChatsMsgCounts = {};
 let directChatsSoundInitialized = false;
-// подтягиваем актуальный статус Telegram Premium у собеседников из их аккаунтов
+// подтягиваем актуальный статус Telegram Premium и присутствия (онлайн/был в сети) у собеседников
 async function refreshPartnerPremiumBadges(){
   if(!cloudReady) return;
   const reals = directChats.filter(c=>c.real);
   for(const c of reals){
     try{
       const snap = await db.collection('accounts').doc(c.partnerId).get();
-      const isPremium = snap.exists ? !!snap.data().isPremium : false;
-      const avatarId = snap.exists ? (snap.data().avatarId || null) : null;
+      const data = snap.exists ? snap.data() : {};
+      const isPremium = !!data.isPremium;
+      const avatarId = data.avatarId || null;
+      const presence = data.presence || null;
+      const isRecentBeat = presence && presence.lastActive && (Date.now() - presence.lastActive) < PRESENCE_ONLINE_TIMEOUT;
+      const online = !!(presence && presence.online && isRecentBeat);
+      const lastActive = presence ? presence.lastActive : null;
       let changed = false;
       if(c.partnerIsPremium !== isPremium){ c.partnerIsPremium = isPremium; changed = true; }
       if(c.partnerAvatarId !== avatarId){ c.partnerAvatarId = avatarId; changed = true; }
+      if(c.partnerOnline !== online){ c.partnerOnline = online; changed = true; }
+      if(c.partnerLastActive !== lastActive){ c.partnerLastActive = lastActive; changed = true; }
       if(changed){
         renderChatList(document.getElementById('searchInput').value);
         if(activeChatId === c.id) refreshOpenChatIfAny();
       }
-    }catch(e){ /* игнорируем — бейдж/аватарка просто не обновятся в этот раз */ }
+    }catch(e){ /* игнорируем — бейдж/статус просто не обновятся в этот раз */ }
   }
+}
+let presencePollTimer = null;
+function startPresencePolling(){
+  if(presencePollTimer) clearInterval(presencePollTimer);
+  presencePollTimer = setInterval(refreshPartnerPremiumBadges, 12000);
 }
 function simpleHash(str){
   let h = 0;
@@ -1312,13 +1396,11 @@ function scheduleBotReply(chatId){
   }, preDelay);
 }
 
-const contactsPool = [
-  {name:'Ольга Иванова', sub:'была в сети недавно'},
-  {name:'Дмитрий Козлов', sub:'в сети'},
-  {name:'Екатерина Морозова', sub:'была в сети вчера'},
-  {name:'Сергей Волков', sub:'в сети'},
-  {name:'Наталья Соколова', sub:'была в сети 2 часа назад'}
-];
+// раньше здесь был статичный пул фейковых ИИ-контактов — убран.
+// теперь для выбора получателя (подарок / группа) используются только реальные люди, с которыми уже есть переписка
+function getContactsPool(){
+  return directChats.map(c => ({name: c.name, sub: ''}));
+}
 
 const giftItems = [
   {emoji:'🧸', name:'Плюшевый мишка', price:15},
@@ -1387,7 +1469,7 @@ function buildChatItemEl(c){
   const pinned = isChatPinned(c.id);
   const av = chatAvatarStyleAndContent(c);
   div.innerHTML = `
-    <div class="avatar ${c.avatarClass}" style="${av.style}">${av.content}</div>
+    <div class="avatar ${c.avatarClass}" style="${av.style}">${av.content}${onlineDotHTML(c)}</div>
     <div class="chat-info">
       <div class="chat-row1">
         <span class="chat-name">${pinned ? '<span class="pinned-icon">📌</span>' : ''}${c.isGroup ? '👥 ' : ''}${nameWithPremiumBadge(c.name, !!(c.real && c.partnerIsPremium))}</span>
@@ -1460,6 +1542,43 @@ function togglePinChat(id){
   renderChatList(document.getElementById('searchInput').value);
 }
 
+/* ---------------- ПЕРЕИМЕНОВАНИЕ ЧАТОВ / ЛЮДЕЙ ---------------- */
+// хранится локально на устройстве, чтобы имя человека можно было изменить у себя,
+// даже если это настоящий собеседник (для реальных чатов имя иначе каждый раз подтягивается заново с сервера)
+function getNameOverrides(){ try{ return JSON.parse(localStorage.getItem('tg_name_overrides') || '{}'); }catch(e){ return {}; } }
+function setNameOverride(id, name){
+  const overrides = getNameOverrides();
+  overrides[id] = name;
+  localStorage.setItem('tg_name_overrides', JSON.stringify(overrides));
+}
+function applyNameOverrides(list){
+  const overrides = getNameOverrides();
+  list.forEach(c => { if(overrides[c.id]) c.name = overrides[c.id]; });
+}
+function renameChatFromList(id){
+  closeChatContextMenu();
+  const moreMenu = document.getElementById('chatMoreMenu');
+  if(moreMenu) moreMenu.classList.remove('show');
+  const chat = chats.find(c=>c.id===id);
+  if(!chat) return;
+  const ru = currentLang === 'ru';
+  const newName = window.prompt(ru ? 'Новое имя:' : 'New name:', chat.name);
+  if(newName === null) return;
+  const trimmed = newName.trim();
+  if(!trimmed) return;
+  chat.name = trimmed;
+  if(chat.real){
+    setNameOverride(id, trimmed);
+  } else {
+    const localChat = localChats.find(c=>c.id===id);
+    if(localChat) localChat.name = trimmed;
+    scheduleSaveChats();
+  }
+  mergeAndRenderChats();
+  if(activeChatId === id) openChat(id);
+  showToast(ru ? 'Имя изменено ✏️' : 'Name changed ✏️');
+}
+
 /* ---------------- КОНТЕКСТНОЕ МЕНЮ ЧАТА (долгое нажатие / ПКМ) ---------------- */
 function closeChatContextMenu(){
   const m = document.getElementById('chatCtxMenu');
@@ -1480,6 +1599,7 @@ function openChatContextMenu(id, x, y){
   menu.className = 'ctx-menu';
   menu.id = 'chatCtxMenu';
   menu.innerHTML = `
+    <div class="settings-item" data-action="rename"><div class="ic" style="background:#f0a93b">✏️</div><div class="label">${ru?'Переименовать':'Rename'}</div></div>
     <div class="settings-item" data-action="pin"><div class="ic" style="background:#5b8def">📌</div><div class="label">${pinned ? (ru?'Открепить':'Unpin') : (ru?'Закрепить':'Pin')}</div></div>
     <div class="settings-item" data-action="mute"><div class="ic" style="background:#8a5be5">${muted ? '🔔' : '🔕'}</div><div class="label">${muted ? (ru?'Включить уведомления':'Unmute') : (ru?'Отключить уведомления':'Mute')}</div></div>
     <div class="settings-item" data-action="archive"><div class="ic" style="background:#3bbf6e">${archived ? '📤' : '📥'}</div><div class="label">${archived ? (ru?'Восстановить из черновиков':'Restore from drafts') : (ru?'В черновики':'Move to drafts')}</div></div>
@@ -1487,6 +1607,7 @@ function openChatContextMenu(id, x, y){
   `;
   document.body.appendChild(menu);
 
+  menu.querySelector('[data-action="rename"]').addEventListener('click', (e) => { e.stopPropagation(); renameChatFromList(id); });
   menu.querySelector('[data-action="pin"]').addEventListener('click', (e) => { e.stopPropagation(); togglePinChat(id); closeChatContextMenu(); });
   menu.querySelector('[data-action="mute"]').addEventListener('click', (e) => { e.stopPropagation(); toggleMuteFromList(id); });
   menu.querySelector('[data-action="archive"]').addEventListener('click', (e) => { e.stopPropagation(); toggleArchiveChat(id); closeChatContextMenu(); });
@@ -1555,6 +1676,7 @@ function openChat(id, attempt=0){
   }
   activeChatId = id;
   chat.unread = 0;
+  if(chat.real) markDirectChatRead(chat);
   renderChatList(document.getElementById('searchInput').value);
   scheduleSaveChats();
   document.getElementById('app').classList.add('chat-open');
@@ -1565,7 +1687,7 @@ function openChat(id, attempt=0){
       <button class="icon-btn back-btn" onclick="closeChatMobile()" title="${t('back')}" style="margin-right:2px;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <div class="avatar ${chat.avatarClass}" style="width:40px;height:40px;font-size:14px;${chatAvatarStyleAndContent(chat).style}">${chatAvatarStyleAndContent(chat).content}</div>
+      <div class="avatar ${chat.avatarClass}" style="width:40px;height:40px;font-size:14px;${chatAvatarStyleAndContent(chat).style}">${chatAvatarStyleAndContent(chat).content}${onlineDotHTML(chat)}</div>
       <div class="chat-info">
         <div class="chat-name">${nameWithPremiumBadge(chat.name, !!(chat.real && chat.partnerIsPremium))}</div>
         <div class="status">${chatStatusLabel(chat)}</div>
@@ -2456,6 +2578,7 @@ function isChatMuted(id){ return getMutedChats().includes(id); }
 function chatMoreMenuHTML(chat){
   const muted = isChatMuted(chat.id);
   return `
+    <div class="settings-item" onclick='renameChatFromList(${JSON.stringify(chat.id)})'><div class="ic" style="background:#f0a93b">✏️</div><div class="label">${currentLang==='ru' ? 'Переименовать' : 'Rename'}</div></div>
     <div class="settings-item" onclick="viewChatInfo()"><div class="ic" style="background:#3b9ee5">ℹ️</div><div class="label">${t('chatInfo')}</div></div>
     <div class="settings-item" onclick="toggleChatMute()"><div class="ic" style="background:#8a5be5">${muted ? '🔔' : '🔕'}</div><div class="label">${muted ? t('unmuteChat') : t('muteChat')}</div></div>
     <div class="settings-item" onclick="confirmClearHistory()"><div class="ic" style="background:#e58a3b">🧹</div><div class="label">${t('clearHistory')}</div></div>
@@ -2483,7 +2606,7 @@ function viewChatInfo(){
   overlay.innerHTML = `<div class="modal">
       <div class="modal-header"><h3>${t('chatInfo')}</h3><span style="margin-left:auto;cursor:pointer;" onclick="closeModal()">✕</span></div>
       <div class="profile-block" style="padding:24px 18px;">
-        <div class="avatar ${chat.avatarClass}" style="width:88px;height:88px;font-size:30px;margin:0 auto 10px;${chatAvatarStyleAndContent(chat).style}">${chatAvatarStyleAndContent(chat).content}</div>
+        <div class="avatar ${chat.avatarClass}" style="width:88px;height:88px;font-size:30px;margin:0 auto 10px;${chatAvatarStyleAndContent(chat).style}">${chatAvatarStyleAndContent(chat).content}${onlineDotHTML(chat)}</div>
         <h3>${nameWithPremiumBadge(chat.name, !!(chat.real && chat.partnerIsPremium))}</h3>
         <p>${chatStatusLabel(chat)}</p>
       </div>
@@ -2729,6 +2852,10 @@ function chatAvatarStyleAndContent(chat){
   }
   return { style: '', content: chat ? chat.avatarText : '' };
 }
+// зелёная точка "в сети" поверх аватара — только для настоящих собеседников
+function onlineDotHTML(chat){
+  return (chat && chat.real && chat.partnerOnline) ? '<span class="online-dot"></span>' : '';
+}
 
 function startEditProfile(){
   editingProfile = true;
@@ -2959,9 +3086,6 @@ function openModal(type, premiumGift=false){
         <div class="auth-error" id="phoneAddError" style="margin-top:6px;"></div>
         <button class="auth-btn auth-btn-primary" style="margin-top:10px;" id="phoneAddBtn" onclick="handleAddByPhone()">Найти и написать</button>
       </div>
-      <div style="padding:16px 18px 4px; color:var(--text-secondary); font-size:12.5px; border-top:1px dashed var(--border); margin-top:14px;">Демо-контакты (бот отвечает автоматически)</div>
-      <div class="modal-search"><span>🔍</span><input placeholder="Поиск контактов" oninput="filterContacts(this.value)"></div>
-      <div class="modal-body" id="contactsBox"></div>
       <div class="modal-actions">
         <button class="btn-secondary" onclick="closeModal(); openModal('newGroup')">Новая группа</button>
         <button class="btn-secondary" onclick="closeModal()">Отмена</button>
@@ -2997,7 +3121,6 @@ function openModal(type, premiumGift=false){
 
   overlay.innerHTML = `<div class="modal">${body}</div>`;
   document.body.appendChild(overlay);
-  if(type === 'newChat') renderContacts('');
   if(type === 'chooseRecipient') renderContacts('', true);
   if(type === 'newGroup'){
     selectedGroupMembers = [];
@@ -3012,26 +3135,20 @@ function closeModal(){
 function renderContacts(filter, forGift=false){
   const box = document.getElementById('contactsBox');
   if(!box) return;
-  box.innerHTML = contactsPool
+  const pool = getContactsPool();
+  if(pool.length === 0){
+    box.innerHTML = `<div style="padding:18px; color:var(--text-secondary); font-size:13.5px; text-align:center;">${currentLang==='ru' ? 'Пока нет ни одного собеседника. Сначала найдите реального человека выше.' : 'No contacts yet. Find a real person above first.'}</div>`;
+    return;
+  }
+  box.innerHTML = pool
     .filter(c=>c.name.toLowerCase().includes(filter.toLowerCase()))
     .map((c,i)=>`
-      <div class="contact-row" onclick="${forGift ? `sendGiftTo('${c.name}')` : `startChatWith('${c.name}')`}">
+      <div class="contact-row" onclick="${forGift ? `sendGiftTo('${c.name}')` : `closeModal()`}">
         <div class="avatar g${(i%5)+1}">${c.name.split(' ').map(n=>n[0]).join('')}</div>
         <div><div class="name">${c.name}</div><div class="sub">${c.sub}</div></div>
       </div>`).join('');
 }
 function filterContacts(v, forGift=false){ renderContacts(v, forGift); }
-function startChatWith(name){
-  const newId = Math.max(...localChats.map(c=>c.id), 0) + 1;
-  const initials = name.split(' ').map(n=>n[0]).join('');
-  const persona = pickRandom(['friendly','busy','formal']);
-  localChats.unshift({id:newId, name, preview:'Новый чат создан', time:'сейчас', unread:0, avatarClass:'g'+((newId%5)+1), avatarText:initials, pinned:false, persona, messages:[]});
-  closeModal();
-  mergeAndRenderChats();
-  openChat(newId);
-  scheduleSaveChats();
-  showToast(`Чат с ${name} создан`);
-}
 
 // поиск реального пользователя по номеру телефона / логину и создание (или открытие) общего чата с ним
 async function handleAddByPhone(){
@@ -3153,7 +3270,12 @@ let selectedGroupMembers = []; // имена выбранных контакто
 function renderGroupContacts(filter){
   const box = document.getElementById('groupContactsBox');
   if(!box) return;
-  box.innerHTML = contactsPool
+  const pool = getContactsPool();
+  if(pool.length === 0){
+    box.innerHTML = `<div style="padding:18px; color:var(--text-secondary); font-size:13.5px; text-align:center;">${currentLang==='ru' ? 'Пока нет ни одного собеседника, чтобы добавить в группу.' : 'No contacts yet to add to a group.'}</div>`;
+    return;
+  }
+  box.innerHTML = pool
     .filter(c=>c.name.toLowerCase().includes((filter||'').toLowerCase()))
     .map((c,i)=>{
       const selected = selectedGroupMembers.includes(c.name);
@@ -3199,7 +3321,7 @@ function confirmCreateGroup(){
 
   const newId = Math.max(...localChats.map(c=>c.id), 0) + 1;
   const initials = groupName.split(' ').map(n=>n[0]).filter(Boolean).slice(0,2).join('').toUpperCase() || '👥';
-  const persona = pickRandom(['friendly','busy','formal']);
+  const persona = null; // ИИ-боты убраны — группа не отвечает автоматически
   const firstSender = selectedGroupMembers[0];
   const now = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
 
@@ -3439,6 +3561,7 @@ function rememberDevice(user){
   localStorage.setItem('tg_current_login', user.trim());
 }
 function logout(){
+  stopPresenceHeartbeat(currentAccId);
   localStorage.removeItem('tg_current_login');
   location.reload();
 }
@@ -3462,6 +3585,8 @@ async function completeAuth(name, userAccId, accData={}){
     await loadAndWatchChats(userAccId);
     watchDirectChats(userAccId);
     watchIncomingCalls(userAccId);
+    startPresenceHeartbeat(userAccId);
+    startPresencePolling();
   }
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('app').classList.remove('blurred');
