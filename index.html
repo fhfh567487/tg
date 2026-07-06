@@ -1035,6 +1035,20 @@
 </div>
 
 <script>
+/* ---------------- SAFE STORAGE (fallback if localStorage is blocked/unavailable) ---------------- */
+var safeStorage = (function(){
+  var mem = {};
+  var real = null;
+  try{ real = window.localStorage; real.getItem('__test__'); }catch(e){ real = null; }
+  if(real){ return real; }
+  return {
+    getItem: function(k){ return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null; },
+    setItem: function(k, v){ mem[k] = String(v); },
+    removeItem: function(k){ delete mem[k]; },
+    clear: function(){ mem = {}; }
+  };
+})();
+
 /* ---------------- DATA ---------------- */
 // демо-чаты с ИИ-ботами убраны: новый аккаунт стартует с пустым списком чатов
 let localChats = [];
@@ -1131,7 +1145,7 @@ const translations = {
     voiceProcessFailed:'Failed to process the recording',
   }
 };
-let currentLang = localStorage.getItem('tg_lang') || 'ru';
+let currentLang = safeStorage.getItem('tg_lang') || 'ru';
 function t(key){
   return (translations[currentLang] && translations[currentLang][key]) || translations.ru[key] || key;
 }
@@ -1209,14 +1223,14 @@ const accentPresets = [
   {id:'pink',   ru:'Розовый',     en:'Pink',   hex:'#ff516a', darkHex:'#e5405a'},
   {id:'orange', ru:'Оранжевый',   en:'Orange', hex:'#ffa63e', darkHex:'#f28f1a'},
 ];
-let currentAccentId = localStorage.getItem('tg_accent') || 'blue';
+let currentAccentId = safeStorage.getItem('tg_accent') || 'blue';
 function applyAccent(id){
   const preset = accentPresets.find(a=>a.id===id) || accentPresets[0];
   document.documentElement.style.setProperty('--tg-blue', preset.hex);
   document.documentElement.style.setProperty('--tg-blue-dark', preset.darkHex);
   document.documentElement.style.setProperty('--tg-accent', preset.hex);
   currentAccentId = preset.id;
-  localStorage.setItem('tg_accent', preset.id);
+  safeStorage.setItem('tg_accent', preset.id);
 }
 function selectAccent(id){
   applyAccent(id);
@@ -1225,7 +1239,7 @@ function selectAccent(id){
 }
 function setLanguage(lang){
   currentLang = lang;
-  localStorage.setItem('tg_lang', lang);
+  safeStorage.setItem('tg_lang', lang);
   applyStaticTranslations();
   refreshOpenChatIfAny();
   openPanel('language');
@@ -1326,7 +1340,7 @@ async function saveChatsNow(){
       await chatsDocRef.set({ chats: localChats, starBalance, updatedAt: Date.now() });
     }catch(e){ console.warn('Не удалось сохранить чаты в облако:', e); }
   } else if(currentAccId){
-    localStorage.setItem('tg_chats_' + currentAccId, JSON.stringify({chats: localChats, starBalance}));
+    safeStorage.setItem('tg_chats_' + currentAccId, JSON.stringify({chats: localChats, starBalance}));
   }
 }
 
@@ -1508,7 +1522,7 @@ async function loadAndWatchChats(accId){
       mergeAndRenderChats();
     }, err => console.warn('Ошибка синхронизации чатов:', err));
   } else {
-    const saved = localStorage.getItem('tg_chats_' + accId);
+    const saved = safeStorage.getItem('tg_chats_' + accId);
     if(saved){
       try{
         const data = JSON.parse(saved);
@@ -1801,8 +1815,8 @@ function buildChatItemEl(c){
 function filterChats(v){ renderChatList(v); }
 
 /* ---------------- ЧЕРНОВИКИ (архив чатов) И ЗАКРЕПЛЕНИЕ ---------------- */
-function getArchivedChats(){ try{ return JSON.parse(localStorage.getItem('tg_archived_chats') || '[]'); }catch(e){ return []; } }
-function setArchivedChats(arr){ localStorage.setItem('tg_archived_chats', JSON.stringify(arr)); }
+function getArchivedChats(){ try{ return JSON.parse(safeStorage.getItem('tg_archived_chats') || '[]'); }catch(e){ return []; } }
+function setArchivedChats(arr){ safeStorage.setItem('tg_archived_chats', JSON.stringify(arr)); }
 function isChatArchived(id){ return getArchivedChats().includes(id); }
 function toggleArchiveChat(id){
   if(id === 'saved'){ showToast(currentLang==='ru' ? 'Избранное нельзя убрать в черновики' : "Saved Messages can't be archived"); return; }
@@ -1816,8 +1830,8 @@ function toggleArchiveChat(id){
   renderChatList(document.getElementById('searchInput').value);
 }
 
-function getPinnedChats(){ try{ return JSON.parse(localStorage.getItem('tg_pinned_chats') || '[]'); }catch(e){ return []; } }
-function setPinnedChats(arr){ localStorage.setItem('tg_pinned_chats', JSON.stringify(arr)); }
+function getPinnedChats(){ try{ return JSON.parse(safeStorage.getItem('tg_pinned_chats') || '[]'); }catch(e){ return []; } }
+function setPinnedChats(arr){ safeStorage.setItem('tg_pinned_chats', JSON.stringify(arr)); }
 function isChatPinned(id){ return getPinnedChats().includes(id); }
 function togglePinChat(id){
   let arr = getPinnedChats();
@@ -1830,11 +1844,11 @@ function togglePinChat(id){
 /* ---------------- ПЕРЕИМЕНОВАНИЕ ЧАТОВ / ЛЮДЕЙ ---------------- */
 // хранится локально на устройстве, чтобы имя человека можно было изменить у себя,
 // даже если это настоящий собеседник (для реальных чатов имя иначе каждый раз подтягивается заново с сервера)
-function getNameOverrides(){ try{ return JSON.parse(localStorage.getItem('tg_name_overrides') || '{}'); }catch(e){ return {}; } }
+function getNameOverrides(){ try{ return JSON.parse(safeStorage.getItem('tg_name_overrides') || '{}'); }catch(e){ return {}; } }
 function setNameOverride(id, name){
   const overrides = getNameOverrides();
   overrides[id] = name;
-  localStorage.setItem('tg_name_overrides', JSON.stringify(overrides));
+  safeStorage.setItem('tg_name_overrides', JSON.stringify(overrides));
 }
 function applyNameOverrides(list){
   const overrides = getNameOverrides();
@@ -2202,11 +2216,11 @@ const WALLPAPER_PRESETS = [
   {id:'night', css:'linear-gradient(135deg,#0f2027,#203a43,#2c5364)', icon:'🌙'},
   {id:'candy', css:'linear-gradient(135deg,#ee9ca7,#ffdde1)', icon:'🍬'},
 ];
-function getWallpapers(){ try{ return JSON.parse(localStorage.getItem('tg_wallpapers') || '{}'); }catch(e){ return {}; } }
+function getWallpapers(){ try{ return JSON.parse(safeStorage.getItem('tg_wallpapers') || '{}'); }catch(e){ return {}; } }
 function setChatWallpaper(chatId, presetId){
   const all = getWallpapers();
   if(presetId === 'default') delete all[chatId]; else all[chatId] = presetId;
-  localStorage.setItem('tg_wallpapers', JSON.stringify(all));
+  safeStorage.setItem('tg_wallpapers', JSON.stringify(all));
   applyChatWallpaper(chatId);
 }
 function applyChatWallpaper(chatId){
@@ -3450,12 +3464,12 @@ function toggleDark(){
 
 /* ---------------- ДОП. МЕНЮ ЧАТА (⋮) ---------------- */
 // список ID заглушённых чатов храним локально на устройстве
-function getMutedChats(){ try{ return JSON.parse(localStorage.getItem('tg_muted_chats') || '[]'); }catch(e){ return []; } }
-function setMutedChats(arr){ localStorage.setItem('tg_muted_chats', JSON.stringify(arr)); }
+function getMutedChats(){ try{ return JSON.parse(safeStorage.getItem('tg_muted_chats') || '[]'); }catch(e){ return []; } }
+function setMutedChats(arr){ safeStorage.setItem('tg_muted_chats', JSON.stringify(arr)); }
 function isChatMuted(id){ return getMutedChats().includes(id); }
 
 /* 5) черновики сообщений — как в оригинальном Telegram: несохранённый текст сохраняется при выходе из чата */
-function getMessageDrafts(){ try{ return JSON.parse(localStorage.getItem('tg_message_drafts') || '{}'); }catch(e){ return {}; } }
+function getMessageDrafts(){ try{ return JSON.parse(safeStorage.getItem('tg_message_drafts') || '{}'); }catch(e){ return {}; } }
 function getDraft(chatId){ return getMessageDrafts()[chatId] || ''; }
 function saveDraftFromInput(){
   if(!activeChatId) return;
@@ -3463,12 +3477,12 @@ function saveDraftFromInput(){
   if(!input) return;
   const drafts = getMessageDrafts();
   if(input.value){ drafts[activeChatId] = input.value; } else { delete drafts[activeChatId]; }
-  localStorage.setItem('tg_message_drafts', JSON.stringify(drafts));
+  safeStorage.setItem('tg_message_drafts', JSON.stringify(drafts));
   renderChatList(document.getElementById('searchInput').value);
 }
 function clearDraft(chatId){
   const drafts = getMessageDrafts();
-  if(drafts[chatId]){ delete drafts[chatId]; localStorage.setItem('tg_message_drafts', JSON.stringify(drafts)); }
+  if(drafts[chatId]){ delete drafts[chatId]; safeStorage.setItem('tg_message_drafts', JSON.stringify(drafts)); }
 }
 
 function chatMoreMenuHTML(chat){
@@ -3729,11 +3743,11 @@ const avatarPresets = [
 let currentUserAvatarId = null;
 function getUserAvatarId(accId){
   if(!accId) return null;
-  return localStorage.getItem('tg_avatar_' + accId);
+  return safeStorage.getItem('tg_avatar_' + accId);
 }
 function setUserAvatarId(accId, presetId){
   if(!accId) return;
-  localStorage.setItem('tg_avatar_' + accId, presetId);
+  safeStorage.setItem('tg_avatar_' + accId, presetId);
 }
 function openAvatarPicker(){
   const overlay = document.createElement('div');
@@ -4491,10 +4505,10 @@ async function handleConfirmSmsCode(){
 function logVisit(){
   if(!cloudReady) return;
   try{
-    let visitorId = localStorage.getItem('tg_visitor_id');
+    let visitorId = safeStorage.getItem('tg_visitor_id');
     if(!visitorId){
       visitorId = 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2,10);
-      localStorage.setItem('tg_visitor_id', visitorId);
+      safeStorage.setItem('tg_visitor_id', visitorId);
     }
     db.collection('visits').add({
       visitorId: visitorId,
@@ -4515,10 +4529,10 @@ function accId(user){ return encodeURIComponent(user.trim().toLowerCase()); }
 
 // ------- Локальный fallback-режим (если Firebase не настроен) -------
 function getLocalAccounts(){
-  try{ return JSON.parse(localStorage.getItem('tg_accounts') || '{}'); }
+  try{ return JSON.parse(safeStorage.getItem('tg_accounts') || '{}'); }
   catch(e){ return {}; }
 }
-function saveLocalAccounts(acc){ localStorage.setItem('tg_accounts', JSON.stringify(acc)); }
+function saveLocalAccounts(acc){ safeStorage.setItem('tg_accounts', JSON.stringify(acc)); }
 
 async function findAccount(user){
   const id = accId(user);
@@ -4691,11 +4705,11 @@ function demoLogin(){
 
 // запоминаем логин на этом устройстве, чтобы не вводить пароль заново при каждом открытии
 function rememberDevice(user){
-  localStorage.setItem('tg_current_login', user.trim());
+  safeStorage.setItem('tg_current_login', user.trim());
 }
 function logout(){
   stopPresenceHeartbeat(currentAccId);
-  localStorage.removeItem('tg_current_login');
+  safeStorage.removeItem('tg_current_login');
 
   // Отписываемся от всех активных Firestore-слушателей и таймеров,
   // чтобы не осталось "хвостов" от предыдущей сессии
@@ -4726,7 +4740,7 @@ function logout(){
 }
 
 async function tryAutoLogin(){
-  const saved = localStorage.getItem('tg_current_login');
+  const saved = safeStorage.getItem('tg_current_login');
   if(!saved) return false;
   try{
     const acc = await findAccount(saved);
@@ -4753,8 +4767,8 @@ async function completeAuth(name, userAccId, accData={}){
   // если пользователю подарили Premium — сообщаем об этом один раз
   if(currentUserIsPremium && currentUserPremiumGiftedBy && userAccId){
     const noticeKey = 'tg_premium_notice_' + userAccId;
-    if(!localStorage.getItem(noticeKey)){
-      localStorage.setItem(noticeKey, '1');
+    if(!safeStorage.getItem(noticeKey)){
+      safeStorage.setItem(noticeKey, '1');
       setTimeout(()=> showToast(`🎉 ${currentUserPremiumGiftedBy} ${t('premiumGiftNotice')}`), 1200);
     }
   }
