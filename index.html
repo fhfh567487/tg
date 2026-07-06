@@ -53,16 +53,23 @@
   body.dark .empty-state svg circle{ fill:#1c2733; }
   body.dark .toggle{ background:#2b3945; }
   *{box-sizing:border-box; margin:0; padding:0;}
+  html{
+    overflow-x:hidden;
+    width:100%;
+  }
   body{
     font-family: var(--font);
     background: var(--bg-app);
     color: var(--text-main);
     height:100vh;
     height:100dvh;
+    width:100%;
     overflow:hidden;
+    overflow-x:hidden;
     -webkit-font-smoothing:antialiased;
     text-rendering:optimizeLegibility;
   }
+  img{ max-width:100%; }
   .app{
     display:flex;
     height:100vh;
@@ -927,6 +934,11 @@
     .back-btn{
       display:flex !important;
     }
+
+    #dropMenu{
+      width:calc(100vw - 20px) !important;
+      max-width:250px;
+    }
   }
   .back-btn{ display:none; }
 </style>
@@ -936,27 +948,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 </head>
 <body class="dark">
-
-<!-- БАННЕР: ПЕРЕЕЗД В ПРИЛОЖЕНИЕ (показывается только один раз) -->
-<div id="moveBanner" style="position:relative; z-index:200; background:linear-gradient(135deg,#2AABEE,#229ED9); color:#fff; padding:10px 14px; font-size:13.5px; line-height:1.4; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-  <span style="flex:1; min-width:200px;">
-    📱 Мы переехали в приложение! Никаких вирусов — скачивайте и устанавливайте спокойно.
-    <a href="https://drive.google.com/file/d/1dkxff9nzNv1gevFQEYE6WTYp6NtazgVY/view?usp=sharing" target="_blank" style="color:#fff; font-weight:700; text-decoration:underline; white-space:nowrap;">Скачать приложение</a>
-  </span>
-  <span onclick="document.getElementById('moveBanner').style.display='none'" style="cursor:pointer; font-weight:700; padding:0 6px; flex-shrink:0;">✕</span>
-</div>
-<script>
-  // если баннер про переезд в приложение уже показывался этому пользователю — скрываем его навсегда
-  (function(){
-    var seenKey = 'tg_move_banner_seen';
-    var banner = document.getElementById('moveBanner');
-    if(localStorage.getItem(seenKey)){
-      banner.style.display = 'none';
-    } else {
-      localStorage.setItem(seenKey, '1');
-    }
-  })();
-</script>
 
 <!-- AUTH OVERLAY -->
 <div class="auth-overlay" id="authOverlay">
