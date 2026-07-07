@@ -381,6 +381,7 @@
   .file-size{ font-size:12px; color:var(--text-secondary); margin-top:2px; }
   .file-download-ic{ font-size:16px; flex-shrink:0; }
   .premium-star{ font-size:0.85em; }
+  .verified-badge{ font-size:0.8em; }
 
   /* ---------- ГОЛОСОВЫЕ СООБЩЕНИЯ ---------- */
   .bubble-voice{ padding:8px 10px; }
@@ -1055,6 +1056,15 @@ var safeStorage = (function(){
 let localChats = [];
 // directChats — настоящие переписки с реальными людьми, живут в облаке и синхронизируются между обоими участниками
 let directChats = [];
+// channelChats — публичные каналы (общий канал для всех пользователей + личные локальные каналы попадают в localChats)
+let channelChats = [];
+let unsubscribeGlobalChannel = null;
+// realGroupChats — настоящие групповые чаты с несколькими реальными участниками, живут в облаке;
+// только создатель группы (adminId) может её переименовать — остальные участники не-админы
+let realGroupChats = [];
+let unsubscribeMyGroups = null;
+// номер телефона администратора общего канала "Все участники"
+const GLOBAL_CHANNEL_ADMIN_PHONE = '89771124745';
 // chats — то, что реально показывается в списке: локальные демо-чаты с ботами + настоящие личные чаты
 let chats = [...localChats];
 let currentUserName = null;
@@ -1190,8 +1200,24 @@ function linkPreviewHtml(raw){
   </div>`;
 }
 // звёздочка Premium рядом с именем
-function nameWithPremiumBadge(name, isPremium){
-  return `${escapeHtml(name)}${isPremium ? ' <span class="premium-star" title="Chats Premium">⭐</span>' : ''}`;
+function nameWithPremiumBadge(name, isPremium, isVerified){
+  const verifiedHtml = isVerified ? ' <span class="verified-badge" title="Подтверждённый аккаунт">✅</span>' : '';
+  return `${escapeHtml(name)}${verifiedHtml}${isPremium ? ' <span class="premium-star" title="Chats Premium">⭐</span>' : ''}`;
+}
+// номер телефона, чей аккаунт всегда отмечается галочкой подтверждения — везде, где показывается его имя,
+// включая шапку/список групповых чатов, если этот аккаунт состоит в участниках группы
+const VERIFIED_ACCOUNT_PHONE = GLOBAL_CHANNEL_ADMIN_PHONE;
+function isVerifiedAccId(id){ return !!id && id === accId(VERIFIED_ACCOUNT_PHONE); }
+// решаем, нужно ли показывать галочку подтверждения рядом с названием ЭТОГО чата:
+// для личного чата — если собеседник и есть подтверждённый аккаунт;
+// для настоящей группы — если подтверждённый аккаунт состоит в участниках (тогда галочку видят ВСЕ участники группы);
+// для канала — если админ канала это подтверждённый аккаунт.
+function chatIsVerified(chat){
+  if(!chat) return false;
+  if(chat.isGroup && chat.real) return (chat.members || []).some(isVerifiedAccId);
+  if(chat.isChannel) return isVerifiedAccId(chat.adminId);
+  if(chat.real) return isVerifiedAccId(chat.partnerId);
+  return false;
 }
 let currentUserIsPremium = false;
 let currentUserPremiumGiftedBy = null;
@@ -1248,6 +1274,11 @@ function setLanguage(lang){
 }
 // текст статуса собеседника в шапке чата
 function chatStatusLabel(chat){
+  if(chat.isChannel) return currentLang==='ru' ? 'канал · публикует администратор' : 'channel · admin posts';
+  if(chat.isGroup && chat.real){
+    const count = (chat.members || []).length;
+    return currentLang==='ru' ? `${count} участников` : `${count} members`;
+  }
   if(chat.real) return presenceStatusText(chat.partnerOnline, chat.partnerLastActive);
   return chat.persona ? t('statusOnline') : t('statusFavorites');
 }
@@ -1302,7 +1333,7 @@ function refreshOpenChatIfAny(){
   const chat = chats.find(c=>c.id===activeChatId);
   if(!chat) return;
   const backBtn = document.querySelector('.back-btn'); if(backBtn) backBtn.title = t('back');
-  const nameEl = document.querySelector('.main-header .chat-name'); if(nameEl) nameEl.innerHTML = nameWithPremiumBadge(chat.name, !!(chat.real && chat.partnerIsPremium));
+  const nameEl = document.querySelector('.main-header .chat-name'); if(nameEl) nameEl.innerHTML = nameWithPremiumBadge(chat.name, !!(chat.real && chat.partnerIsPremium), chatIsVerified(chat));
   const statusEl = document.querySelector('.main-header .status'); if(statusEl) statusEl.textContent = chatStatusLabel(chat);
   const avatarEl = document.querySelector('.main-header .avatar');
   if(avatarEl){
@@ -1347,13 +1378,13 @@ async function saveChatsNow(){
 
 // объединяем локальные и настоящие личные чаты в один список для отображения
 function mergeAndRenderChats(){
-  chats = [...localChats, ...directChats];
+  chats = [...localChats, ...directChats, ...channelChats, ...realGroupChats];
   applyNameOverrides(chats);
   const searchInput = document.getElementById('searchInput');
   renderChatList(searchInput ? searchInput.value : '');
   if(activeChatId){
     const activeChat = chats.find(c=>c.id===activeChatId);
-    if(activeChat) renderMessages(activeChat);
+    if(activeChat){ renderMessages(activeChat); renderPinnedBanner(activeChat); }
   }
 }
 
@@ -1394,6 +1425,8 @@ function watchDirectChats(accIdVal){
         });
         const last = messages[messages.length-1];
         const lastPreview = last ? (last.call ? callMessagePreviewText(last.call) : (last.voice ? '🎤 ' + t('voiceMessage') : (last.file ? (last.file.type && last.file.type.startsWith('image/') ? '🖼 ' + t('photoCaption') : '📎 ' + last.file.name) : last.text))) : t('chatCreated');
+        // закреплённое сообщение хранится в самом документе чата (pinnedMsgId), чтобы оба участника видели одно и то же
+        const pinnedIdx = data.pinnedMsgId ? messages.findIndex(m => m.id === data.pinnedMsgId) : -1;
         // сохраняем ранее известный статус Premium/аватарки/присутствия, чтобы не мигало, пока не подгрузится актуальный
         const prev = directChats.find(c => c.partnerId === partnerId);
         const chatId = 'direct_' + docSnap.id;
@@ -1418,6 +1451,7 @@ function watchDirectChats(accIdVal){
           avatarClass: 'g'+((simpleHash(partnerId)%5)+1),
           avatarText: partnerName.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
           pinned:false,
+          pinnedIdx: pinnedIdx >= 0 ? pinnedIdx : null,
           persona:null,
           messages
         };
@@ -1441,6 +1475,72 @@ function watchDirectChats(accIdVal){
       chatsToMarkRead.forEach(directId => markDirectChatReadById(directId, accIdVal));
     }, err => console.warn('Ошибка синхронизации личных чатов:', err));
 }
+// подписываемся на все настоящие групповые чаты, где текущий аккаунт состоит в участниках.
+// Переименовать группу и управлять ей может только тот, чей accId совпадает с adminId документа —
+// это единственный источник правды об админстве, общий для всех участников группы.
+function watchMyGroups(accIdVal){
+  if(!cloudReady) return;
+  if(unsubscribeMyGroups) unsubscribeMyGroups();
+  unsubscribeMyGroups = db.collection('groups')
+    .where('members', 'array-contains', accIdVal)
+    .onSnapshot({includeMetadataChanges:true}, snap => {
+      const isPending = snap.metadata.hasPendingWrites;
+      realGroupChats = snap.docs.map(docSnap => {
+        const data = docSnap.data();
+        const memberNames = data.memberNames || {};
+        const sortedRaw = (data.messages || []).slice().sort((a,b)=>(a.ts||0)-(b.ts||0));
+        const messages = sortedRaw.map((m, idx) => {
+          const out = m.senderId === accIdVal;
+          let status;
+          if(out) status = (isPending && idx === sortedRaw.length - 1) ? 'sent' : 'delivered';
+          return {
+            id: m.id || ('legacy_'+idx+'_'+(m.ts||0)),
+            out, text: m.text, file: m.file || null, voice: m.voice || null,
+            time: m.time, ts: m.ts || 0, status,
+            senderName: m.senderName || '',
+            replyTo: m.replyTo || null, reactions: m.reactions || null,
+            edited: !!m.edited
+          };
+        });
+        const last = messages[messages.length-1];
+        return {
+          id: 'group_' + docSnap.id,
+          groupDocId: docSnap.id,
+          real: true,
+          isGroup: true,
+          adminId: data.adminId,
+          isAdmin: accIdVal === data.adminId, // важно: сравнение делается для КАЖДОГО участника отдельно на его аккаунте
+          name: data.name || 'Группа',
+          members: data.members || [],
+          memberNames,
+          preview: last ? (last.text || t('chatCreated')) : t('chatCreated'),
+          time: last ? last.time : '',
+          unread: 0,
+          avatarClass: 'g'+((simpleHash(docSnap.id)%5)+1),
+          avatarText: data.avatarText || '👥',
+          pinned: false,
+          persona: null,
+          messages
+        };
+      });
+      mergeAndRenderChats();
+    }, err => console.warn('Ошибка синхронизации групп:', err));
+}
+// отправка сообщения в настоящую группу — разрешено любому участнику (не только админу)
+async function sendGroupMessage(chat, text, replyTo){
+  if(!cloudReady){ showToast('Группы работают только с подключённой базой данных'); return; }
+  const time = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  const msgObj = { id: genMsgId(), senderId: currentAccId, senderName: currentUserName, text, time, ts: Date.now() };
+  if(replyTo) msgObj.replyTo = replyTo;
+  try{
+    await db.collection('groups').doc(chat.groupDocId).update({
+      messages: firebase.firestore.FieldValue.arrayUnion(msgObj)
+    });
+  }catch(e){
+    console.error(e);
+    showToast('Не удалось отправить сообщение — проверьте подключение');
+  }
+}
 // отмечаем в общем документе чата, что мы прочитали сообщения собеседника до текущего момента —
 // именно это превращает у него "доставлено" (2 серые галочки) в "прочитано" (2 синие галочки)
 async function markDirectChatReadById(directId, accId){
@@ -1452,8 +1552,98 @@ async function markDirectChatReadById(directId, accId){
     catch(e2){ console.warn('Не удалось отметить чат прочитанным:', e2); }
   }
 }
+// подписываемся на общий канал "Все участники" — виден абсолютно всем аккаунтам,
+// писать в него может только администратор (аккаунт с номером GLOBAL_CHANNEL_ADMIN_PHONE)
+async function watchGlobalChannel(accIdVal){
+  if(!cloudReady) return;
+  const adminId = accId(GLOBAL_CHANNEL_ADMIN_PHONE);
+  const ref = db.collection('channels').doc('global');
+  try{
+    const snap = await ref.get();
+    if(!snap.exists){
+      await ref.set({
+        name: 'Все участники',
+        description: 'Общий канал для всех пользователей приложения',
+        adminId,
+        adminPhone: GLOBAL_CHANNEL_ADMIN_PHONE,
+        messages: [{
+          id: genMsgId(), senderId: adminId, senderName: 'Администратор',
+          text: 'Добро пожаловать в общий канал! 📢', time: new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}), ts: Date.now()
+        }],
+        createdAt: Date.now()
+      });
+    }
+  }catch(e){ console.warn('Не удалось создать общий канал:', e); }
+
+  if(unsubscribeGlobalChannel) unsubscribeGlobalChannel();
+  unsubscribeGlobalChannel = ref.onSnapshot({includeMetadataChanges:true}, snap => {
+    if(!snap.exists) return;
+    const data = snap.data();
+    const isPending = snap.metadata.hasPendingWrites;
+    const sortedRaw = (data.messages || []).slice().sort((a,b)=>(a.ts||0)-(b.ts||0));
+    const messages = sortedRaw.map((m, idx) => {
+      const out = m.senderId === accIdVal;
+      let status;
+      if(out){
+        status = (isPending && idx === sortedRaw.length - 1) ? 'sent' : 'read';
+      }
+      return {
+        id: m.id || ('legacy_'+idx+'_'+(m.ts||0)),
+        out, text: m.text, file: m.file || null, voice: m.voice || null,
+        time: m.time, ts: m.ts || 0, status,
+        senderName: m.senderName || '',
+        replyTo: m.replyTo || null, reactions: m.reactions || null,
+        edited: !!m.edited
+      };
+    });
+    const last = messages[messages.length-1];
+    if(isChannelLeft('channel_global')){
+      channelChats = [];
+      mergeAndRenderChats();
+      return;
+    }
+    const pinnedIdx = data.pinnedMsgId ? messages.findIndex(m => m.id === data.pinnedMsgId) : -1;
+    channelChats = [{
+      id: 'channel_global',
+      real: true,
+      isChannel: true,
+      channelDocId: 'global',
+      adminId: data.adminId || adminId,
+      isAdmin: accIdVal === (data.adminId || adminId),
+      name: data.name || 'Все участники',
+      description: data.description || '',
+      preview: last ? (last.text || t('chatCreated')) : t('chatCreated'),
+      time: last ? last.time : '',
+      unread: 0,
+      avatarClass: 'g2',
+      avatarText: '📢',
+      pinned: false,
+      pinnedIdx: pinnedIdx >= 0 ? pinnedIdx : null,
+      persona: null,
+      messages
+    }];
+    mergeAndRenderChats();
+  }, err => console.warn('Ошибка синхронизации общего канала:', err));
+}
+// отправка сообщения в общий канал — разрешено только администратору
+async function sendChannelMessage(chat, text, replyTo){
+  if(!cloudReady){ showToast('Каналы работают только с подключённой базой данных'); return; }
+  if(!chat.isAdmin){ showToast(currentLang==='ru' ? 'Публиковать сообщения может только администратор канала' : 'Only the channel admin can post messages'); return; }
+  const time = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  const msgObj = { id: genMsgId(), senderId: currentAccId, senderName: currentUserName, text, time, ts: Date.now() };
+  if(replyTo) msgObj.replyTo = replyTo;
+  try{
+    await db.collection('channels').doc(chat.channelDocId).update({
+      messages: firebase.firestore.FieldValue.arrayUnion(msgObj)
+    });
+  }catch(e){
+    console.error(e);
+    showToast('Не удалось отправить сообщение — проверьте подключение');
+  }
+}
+
 function markDirectChatRead(chat){
-  if(!chat || !chat.real) return;
+  if(!chat || !chat.real || chat.isChannel || chat.isGroup) return;
   markDirectChatReadById(chat.directId, currentAccId);
 }
 // вспомогательное состояние для определения новых входящих сообщений (для звука уведомления)
@@ -1771,7 +1961,7 @@ function buildChatItemEl(c){
     <div class="avatar ${c.avatarClass}" style="${av.style}">${av.content}${onlineDotHTML(c)}</div>
     <div class="chat-info">
       <div class="chat-row1">
-        <span class="chat-name">${pinned ? '<span class="pinned-icon">📌</span>' : ''}${c.isGroup ? '👥 ' : ''}${nameWithPremiumBadge(c.name, !!(c.real && c.partnerIsPremium))}</span>
+        <span class="chat-name">${pinned ? '<span class="pinned-icon">📌</span>' : ''}${c.isChannel ? '📢 ' : (c.isGroup ? '👥 ' : '')}${nameWithPremiumBadge(c.name, !!(c.real && c.partnerIsPremium), chatIsVerified(c))}</span>
         <span class="chat-time">${isChatMuted(c.id) ? '<span class="mute-icon">🔕</span>' : ''}${c.time}</span>
       </div>
       <div class="chat-row2">
@@ -1863,12 +2053,22 @@ function renameChatFromList(id){
   if(!chat) return;
   const ru = currentLang === 'ru';
   if(chat.isSaved){ showToast(ru ? 'Избранное нельзя переименовать' : "Saved Messages can't be renamed"); return; }
+  if(chat.isGroup && !chat.isAdmin){ showToast(ru ? 'Изменить название группы может только администратор' : 'Only an admin can change the group name'); return; }
+  if(chat.isChannel && !chat.isAdmin){ showToast(ru ? 'Изменить название канала может только администратор' : 'Only the channel admin can change the channel name'); return; }
   const newName = window.prompt(ru ? 'Новое имя:' : 'New name:', chat.name);
   if(newName === null) return;
   const trimmed = newName.trim();
   if(!trimmed) return;
   chat.name = trimmed;
-  if(chat.real){
+  if(chat.isGroup && chat.real){
+    // настоящая группа — переименование должно попасть в общий документ, чтобы увидели все участники.
+    // Бэкенд-проверка не нужна отдельно: кнопка/пункт «Переименовать» уже скрыты выше для не-админов,
+    // и сюда не-админ дойти не может из-за проверки chat.isGroup && !chat.isAdmin в начале функции.
+    if(cloudReady){
+      db.collection('groups').doc(chat.groupDocId).update({ name: trimmed })
+        .catch(e => console.warn('Не удалось переименовать группу в облаке:', e));
+    }
+  } else if(chat.real){
     setNameOverride(id, trimmed);
   } else {
     const localChat = localChats.find(c=>c.id===id);
@@ -1899,20 +2099,30 @@ function openChatContextMenu(id, x, y){
   const menu = document.createElement('div');
   menu.className = 'ctx-menu';
   menu.id = 'chatCtxMenu';
+  const leaveable = !!(chat.isGroup || chat.isChannel);
+  const canRename = !((chat.isGroup || chat.isChannel) && !chat.isAdmin);
   menu.innerHTML = `
-    <div class="settings-item" data-action="rename"><div class="ic" style="background:#f0a93b">✏️</div><div class="label">${ru?'Переименовать':'Rename'}</div></div>
+    ${canRename ? `<div class="settings-item" data-action="rename"><div class="ic" style="background:#f0a93b">✏️</div><div class="label">${ru?'Переименовать':'Rename'}</div></div>` : ''}
     <div class="settings-item" data-action="pin"><div class="ic" style="background:#5b8def">📌</div><div class="label">${pinned ? (ru?'Открепить':'Unpin') : (ru?'Закрепить':'Pin')}</div></div>
     <div class="settings-item" data-action="mute"><div class="ic" style="background:#8a5be5">${muted ? '🔔' : '🔕'}</div><div class="label">${muted ? (ru?'Включить уведомления':'Unmute') : (ru?'Отключить уведомления':'Mute')}</div></div>
     <div class="settings-item" data-action="archive"><div class="ic" style="background:#3bbf6e">${archived ? '📤' : '📥'}</div><div class="label">${archived ? (ru?'Восстановить из черновиков':'Restore from drafts') : (ru?'В черновики':'Move to drafts')}</div></div>
-    <div class="settings-item" data-action="delete"><div class="ic" style="background:#e53935">🗑️</div><div class="label">${ru?'Удалить чат':'Delete chat'}</div></div>
+    ${leaveable
+      ? `<div class="settings-item" data-action="leave"><div class="ic" style="background:#e53935">🚪</div><div class="label">${chat.isChannel ? (ru?'Покинуть канал':'Leave channel') : (ru?'Покинуть группу':'Leave group')}</div></div>`
+      : `<div class="settings-item" data-action="delete"><div class="ic" style="background:#e53935">🗑️</div><div class="label">${ru?'Удалить чат':'Delete chat'}</div></div>`}
   `;
   document.body.appendChild(menu);
 
-  menu.querySelector('[data-action="rename"]').addEventListener('click', (e) => { e.stopPropagation(); renameChatFromList(id); });
+  if(canRename){
+    menu.querySelector('[data-action="rename"]').addEventListener('click', (e) => { e.stopPropagation(); renameChatFromList(id); });
+  }
   menu.querySelector('[data-action="pin"]').addEventListener('click', (e) => { e.stopPropagation(); togglePinChat(id); closeChatContextMenu(); });
   menu.querySelector('[data-action="mute"]').addEventListener('click', (e) => { e.stopPropagation(); toggleMuteFromList(id); });
   menu.querySelector('[data-action="archive"]').addEventListener('click', (e) => { e.stopPropagation(); toggleArchiveChat(id); closeChatContextMenu(); });
-  menu.querySelector('[data-action="delete"]').addEventListener('click', (e) => { e.stopPropagation(); deleteChatFromList(id); });
+  if(leaveable){
+    menu.querySelector('[data-action="leave"]').addEventListener('click', (e) => { e.stopPropagation(); leaveGroupOrChannel(id); });
+  } else {
+    menu.querySelector('[data-action="delete"]').addEventListener('click', (e) => { e.stopPropagation(); deleteChatFromList(id); });
+  }
 
   // позиционируем так, чтобы меню не вылезало за экран
   const menuW = 220, menuH = menu.offsetHeight || 190;
@@ -1942,6 +2152,43 @@ function toggleMuteFromList(id){
   setMutedChats(muted);
   closeChatContextMenu();
   renderChatList(document.getElementById('searchInput').value);
+}
+// выход из группы или канала: локальные группы/каналы удаляются из своего списка,
+// а общий облачный канал просто скрывается локально — сам канал остаётся для всех остальных
+function leaveGroupOrChannel(id){
+  closeChatContextMenu();
+  const cm = document.getElementById('chatMoreMenu');
+  if(cm) cm.classList.remove('show');
+  const chat = chats.find(c=>c.id===id);
+  if(!chat) return;
+  const ru = currentLang === 'ru';
+  const isChannel = !!chat.isChannel;
+  const confirmMsg = isChannel
+    ? (ru ? 'Покинуть этот канал?' : 'Leave this channel?')
+    : (ru ? 'Покинуть эту группу?' : 'Leave this group?');
+  if(!window.confirm(confirmMsg)) return;
+
+  if(chat.isGroup && chat.real){
+    // настоящая группа: выходим, реально убирая себя из списка участников в общем документе,
+    // чтобы группа перестала попадать в наш запрос (members array-contains) и у остальных участников
+    // список тоже обновился
+    if(cloudReady){
+      db.collection('groups').doc(chat.groupDocId).update({
+        members: firebase.firestore.FieldValue.arrayRemove(currentAccId)
+      }).catch(e => console.warn('Не удалось покинуть группу в облаке:', e));
+    }
+    realGroupChats = realGroupChats.filter(c=>c.id!==chat.id);
+  } else if(chat.real){
+    const left = getLeftChannels();
+    if(!left.includes(chat.id)){ left.push(chat.id); setLeftChannels(left); }
+    channelChats = channelChats.filter(c=>c.id!==chat.id);
+  } else {
+    localChats = localChats.filter(c=>c.id!==chat.id);
+    scheduleSaveChats();
+  }
+  if(activeChatId === id) showEmptyChatState();
+  mergeAndRenderChats();
+  showToast(isChannel ? (ru?'Вы покинули канал 🚪':'You left the channel 🚪') : (ru?'Вы покинули группу 🚪':'You left the group 🚪'));
 }
 function deleteChatFromList(id){
   closeChatContextMenu();
@@ -1992,7 +2239,7 @@ function openChat(id, attempt=0){
       </button>
       <div class="avatar ${chat.avatarClass}" style="width:40px;height:40px;font-size:14px;${chatAvatarStyleAndContent(chat).style}">${chatAvatarStyleAndContent(chat).content}${onlineDotHTML(chat)}</div>
       <div class="chat-info" id="chatHeaderInfo">
-        <div class="chat-name">${nameWithPremiumBadge(chat.name, !!(chat.real && chat.partnerIsPremium))}</div>
+        <div class="chat-name">${nameWithPremiumBadge(chat.name, !!(chat.real && chat.partnerIsPremium), chatIsVerified(chat))}</div>
         <div class="status">${chatStatusLabel(chat)}</div>
       </div>
       <div class="header-actions">
@@ -2026,6 +2273,12 @@ function openChat(id, attempt=0){
   renderPinnedBanner(chat);
   setActionButtonMode('mic');
   applyChatWallpaper(chat.id);
+  if(chat.isChannel && !chat.isAdmin){
+    const composer = document.querySelector('.composer');
+    if(composer){
+      composer.innerHTML = `<div style="width:100%; text-align:center; padding:10px; color:var(--text-secondary); font-size:13px;">${currentLang==='ru' ? '📢 Публиковать сообщения в этом канале может только администратор' : '📢 Only the channel admin can post messages here'}</div>`;
+    }
+  }
   const draftText = getDraft(id);
   if(draftText){ const inp = document.getElementById('msgInput'); if(inp){ inp.value = draftText; updateActionBtn(); } }
 }
@@ -2087,8 +2340,8 @@ function setFolder(f){
 }
 function folderMatch(c){
   if(activeFolder === 'unread') return (c.unread||0) > 0;
-  if(activeFolder === 'personal') return !c.isGroup;
-  if(activeFolder === 'groups') return !!c.isGroup;
+  if(activeFolder === 'personal') return !c.isGroup && !c.isChannel;
+  if(activeFolder === 'groups') return !!c.isGroup || !!c.isChannel;
   return true;
 }
 function renderFolderTabs(){
@@ -2108,16 +2361,42 @@ function renderFolderTabs(){
 function pinMessage(chatId, idx){
   const chat = chats.find(c=>c.id===chatId);
   if(!chat) return;
-  chat.pinnedIdx = idx;
-  scheduleSaveChats();
-  if(activeChatId === chatId) renderPinnedBanner(chat);
+  const m = chat.messages[idx];
+  if(chat.real){
+    if(!m) return;
+    pinRealChatMessage(chat, m.id || null);
+  } else {
+    chat.pinnedIdx = idx;
+    scheduleSaveChats();
+    if(activeChatId === chatId) renderPinnedBanner(chat);
+  }
 }
 function unpinMessage(chatId){
   const chat = chats.find(c=>c.id===chatId);
   if(!chat) return;
-  chat.pinnedIdx = null;
-  scheduleSaveChats();
-  if(activeChatId === chatId) renderPinnedBanner(chat);
+  if(chat.real){
+    pinRealChatMessage(chat, null);
+  } else {
+    chat.pinnedIdx = null;
+    scheduleSaveChats();
+    if(activeChatId === chatId) renderPinnedBanner(chat);
+  }
+}
+// закрепление/открепление сообщения для настоящих (облачных) чатов — храним id сообщения в самом
+// документе чата (directChats или channels), чтобы закреплённое сообщение видели все участники
+async function pinRealChatMessage(chat, msgId){
+  const ru = currentLang === 'ru';
+  if(!cloudReady){ showToast(ru ? 'Это работает только с подключённой базой данных' : 'This requires a connected database'); return; }
+  const isChannel = !!chat.isChannel;
+  const collectionName = isChannel ? 'channels' : 'directChats';
+  const docId = isChannel ? chat.channelDocId : chat.directId;
+  if(!docId) return;
+  try{
+    await db.collection(collectionName).doc(docId).update({ pinnedMsgId: msgId });
+  }catch(e){
+    console.error(e);
+    showToast(ru ? 'Не удалось закрепить сообщение' : 'Failed to pin message');
+  }
 }
 function renderPinnedBanner(chat){
   const holder = document.getElementById('pinnedBanner');
@@ -2362,12 +2641,17 @@ function toggleReaction(chatId, idx, emoji){
   closeMsgContextMenu();
 }
 
-/* читаем-меняем-пишем весь массив сообщений настоящего (Firestore) чата — нужно для правки/удаления/реакций */
+/* читаем-меняем-пишем весь массив сообщений настоящего (Firestore) чата — нужно для правки/удаления/реакций.
+   Работает как с личными чатами (directChats), так и с каналами (channels). */
 async function mutateDirectChatMessages(chat, idx, mutator){
   const ru = currentLang === 'ru';
-  if(!cloudReady){ showToast(ru ? 'Личные сообщения работают только с подключённой базой данных' : 'Direct messages require a connected database'); return; }
+  if(!cloudReady){ showToast(ru ? 'Это работает только с подключённой базой данных' : 'This requires a connected database'); return; }
+  const isChannel = !!chat.isChannel;
+  const collectionName = isChannel ? 'channels' : 'directChats';
+  const docId = isChannel ? chat.channelDocId : chat.directId;
+  if(!docId) return;
   try{
-    const ref = db.collection('directChats').doc(chat.directId);
+    const ref = db.collection(collectionName).doc(docId);
     const snap = await ref.get();
     if(!snap.exists) return;
     const data = snap.data();
@@ -2378,7 +2662,9 @@ async function mutateDirectChatMessages(chat, idx, mutator){
     if(result === null){ newArr = rawSorted.filter((_,i)=>i!==idx); }
     else { rawSorted[idx] = result; newArr = rawSorted; }
     const last = newArr[newArr.length-1];
-    await ref.update({ messages: newArr, lastMessage: last ? messagePreviewText(last) : '', lastTime: last ? last.time : '' });
+    const update = { messages: newArr };
+    if(!isChannel){ update.lastMessage = last ? messagePreviewText(last) : ''; update.lastTime = last ? last.time : ''; }
+    await ref.update(update);
   }catch(e){
     console.error(e);
     showToast(ru ? 'Не удалось обновить сообщение' : 'Failed to update message');
@@ -3385,7 +3671,7 @@ function sendMessage(){
     input.value = '';
     updateActionBtn();
     cancelComposerContext();
-    if(chat.real){
+    if(chat.real && !chat.isChannel && !chat.isGroup){
       editDirectMessage(chat, idx, text);
     } else {
       const m = chat.messages[idx];
@@ -3405,6 +3691,18 @@ function sendMessage(){
   updateActionBtn();
   clearDraft(chat.id);
   renderChatList(document.getElementById('searchInput').value);
+
+  if(chat.isChannel && chat.real){
+    if(!chat.isAdmin){ showToast(currentLang==='ru' ? 'Публиковать сообщения может только администратор канала' : 'Only the channel admin can post messages'); return; }
+    sendChannelMessage(chat, text, replyPayload);
+    return;
+  }
+  if(chat.isChannel && !chat.isAdmin){ showToast(currentLang==='ru' ? 'Публиковать сообщения может только администратор канала' : 'Only the channel admin can post messages'); return; }
+
+  if(chat.isGroup && chat.real){
+    sendGroupMessage(chat, text, replyPayload);
+    return;
+  }
 
   if(chat.real){
     sendDirectMessage(chat, text, replyPayload);
@@ -3468,6 +3766,11 @@ function toggleDark(){
 function getMutedChats(){ try{ return JSON.parse(safeStorage.getItem('tg_muted_chats') || '[]'); }catch(e){ return []; } }
 function setMutedChats(arr){ safeStorage.setItem('tg_muted_chats', JSON.stringify(arr)); }
 function isChatMuted(id){ return getMutedChats().includes(id); }
+// список облачных каналов, которые пользователь покинул — храним локально на устройстве,
+// т.к. сам канал общий и не должен удаляться для остальных участников
+function getLeftChannels(){ try{ return JSON.parse(safeStorage.getItem('tg_left_channels') || '[]'); }catch(e){ return []; } }
+function setLeftChannels(arr){ safeStorage.setItem('tg_left_channels', JSON.stringify(arr)); }
+function isChannelLeft(id){ return getLeftChannels().includes(id); }
 
 /* 5) черновики сообщений — как в оригинальном Telegram: несохранённый текст сохраняется при выходе из чата */
 function getMessageDrafts(){ try{ return JSON.parse(safeStorage.getItem('tg_message_drafts') || '{}'); }catch(e){ return {}; } }
@@ -3489,13 +3792,17 @@ function clearDraft(chatId){
 function chatMoreMenuHTML(chat){
   const muted = isChatMuted(chat.id);
   const ru = currentLang === 'ru';
+  const leaveable = !!(chat.isGroup || chat.isChannel);
+  const canRename = !((chat.isGroup || chat.isChannel) && !chat.isAdmin);
   return `
-    <div class="settings-item" onclick='renameChatFromList(${JSON.stringify(chat.id)})'><div class="ic" style="background:#f0a93b">✏️</div><div class="label">${currentLang==='ru' ? 'Переименовать' : 'Rename'}</div></div>
+    ${canRename ? `<div class="settings-item" onclick='renameChatFromList(${JSON.stringify(chat.id)})'><div class="ic" style="background:#f0a93b">✏️</div><div class="label">${currentLang==='ru' ? 'Переименовать' : 'Rename'}</div></div>` : ''}
     <div class="settings-item" onclick="viewChatInfo()"><div class="ic" style="background:#3b9ee5">ℹ️</div><div class="label">${t('chatInfo')}</div></div>
     <div class="settings-item" onclick="toggleChatMute()"><div class="ic" style="background:#8a5be5">${muted ? '🔔' : '🔕'}</div><div class="label">${muted ? t('unmuteChat') : t('muteChat')}</div></div>
     <div class="settings-item" onclick="openWallpaperPicker()"><div class="ic" style="background:#3bbf6e">🖼️</div><div class="label">${ru?'Фон чата':'Chat wallpaper'}</div></div>
     <div class="settings-item" onclick="confirmClearHistory()"><div class="ic" style="background:#e58a3b">🧹</div><div class="label">${t('clearHistory')}</div></div>
-    <div class="settings-item" onclick="confirmDeleteChat()"><div class="ic" style="background:#e53935">🗑️</div><div class="label">${t('deleteChat')}</div></div>
+    ${leaveable
+      ? `<div class="settings-item" onclick='leaveGroupOrChannel(${JSON.stringify(chat.id)})'><div class="ic" style="background:#e53935">🚪</div><div class="label">${chat.isChannel ? (ru?'Покинуть канал':'Leave channel') : (ru?'Покинуть группу':'Leave group')}</div></div>`
+      : `<div class="settings-item" onclick="confirmDeleteChat()"><div class="ic" style="background:#e53935">🗑️</div><div class="label">${t('deleteChat')}</div></div>`}
   `;
 }
 function toggleChatMoreMenu(e){
@@ -3520,7 +3827,7 @@ function viewChatInfo(){
       <div class="modal-header"><h3>${t('chatInfo')}</h3><span style="margin-left:auto;cursor:pointer;" onclick="closeModal()">✕</span></div>
       <div class="profile-block" style="padding:24px 18px;">
         <div class="avatar ${chat.avatarClass}" style="width:88px;height:88px;font-size:30px;margin:0 auto 10px;${chatAvatarStyleAndContent(chat).style}">${chatAvatarStyleAndContent(chat).content}${onlineDotHTML(chat)}</div>
-        <h3>${nameWithPremiumBadge(chat.name, !!(chat.real && chat.partnerIsPremium))}</h3>
+        <h3>${nameWithPremiumBadge(chat.name, !!(chat.real && chat.partnerIsPremium), chatIsVerified(chat))}</h3>
         <p>${chatStatusLabel(chat)}</p>
       </div>
     </div>`;
@@ -3546,7 +3853,12 @@ function confirmClearHistory(){
   chat.preview = '';
   renderMessages(chat);
   renderChatList(document.getElementById('searchInput').value);
-  if(chat.real){
+  if(chat.isGroup && chat.real){
+    if(cloudReady){
+      db.collection('groups').doc(chat.groupDocId).update({ messages: [] })
+        .catch(e => console.warn('Не удалось очистить историю группы в облаке:', e));
+    }
+  } else if(chat.real){
     if(cloudReady){
       db.collection('directChats').doc(chat.directId).update({ messages: [], lastMessage: '', lastTime: '' })
         .catch(e => console.warn('Не удалось очистить историю в облаке:', e));
@@ -3684,7 +3996,7 @@ function settingsHTML(){
         <div class="avatar g2" style="${myAvatarStyle()}">${myAvatarInnerHTML(initial)}</div>
         <div class="avatar-edit-badge" onclick="openAvatarPicker()" title="${currentLang==='ru' ? 'Сменить аватарку' : 'Change avatar'}">📷</div>
       </div>
-      <h3>${nameWithPremiumBadge(currentUserName || t('yourProfile'), currentUserIsPremium)}</h3>
+      <h3>${nameWithPremiumBadge(currentUserName || t('yourProfile'), currentUserIsPremium, isVerifiedAccId(currentAccId))}</h3>
       <p>${currentAccId ? '@' + currentAccId : '@my_username'} · ${t('online')}</p>
     </div>`;
 
@@ -4141,6 +4453,7 @@ function openModal(type, premiumGift=false){
       </div>
       <div class="modal-actions">
         <button class="btn-secondary" onclick="closeModal(); openModal('newGroup')">Новая группа</button>
+        <button class="btn-secondary" onclick="closeModal(); openModal('newChannel')">${currentLang==='ru'?'Новый канал':'New channel'}</button>
         <button class="btn-secondary" onclick="closeModal()">Отмена</button>
       </div>`;
   } else if(type === 'newGroup'){
@@ -4154,6 +4467,22 @@ function openModal(type, premiumGift=false){
       <div class="modal-body" id="groupContactsBox"></div>
       <div class="modal-actions">
         <button class="auth-btn auth-btn-primary" id="createGroupBtn" onclick="confirmCreateGroup()">${currentLang==='ru'?'Создать группу':'Create group'}</button>
+        <button class="btn-secondary" onclick="closeModal()">${currentLang==='ru'?'Отмена':'Cancel'}</button>
+      </div>`;
+  } else if(type === 'newChannel'){
+    body = `
+      <div class="modal-header"><h3>${currentLang==='ru'?'Новый канал':'New channel'}</h3><span style="margin-left:auto;cursor:pointer;" onclick="closeModal()">✕</span></div>
+      <div class="group-name-field" style="margin-top:12px;">
+        <input id="channelNameInput" placeholder="${currentLang==='ru'?'Название канала':'Channel name'}" maxlength="40">
+      </div>
+      <div class="group-name-field">
+        <input id="channelDescInput" placeholder="${currentLang==='ru'?'Описание (необязательно)':'Description (optional)'}" maxlength="120">
+      </div>
+      <div class="selected-chips" id="groupChips"></div>
+      <div class="modal-search"><span>🔍</span><input placeholder="${currentLang==='ru'?'Добавить подписчиков':'Add subscribers'}" oninput="filterGroupContacts(this.value)"></div>
+      <div class="modal-body" id="groupContactsBox"></div>
+      <div class="modal-actions">
+        <button class="auth-btn auth-btn-primary" id="createChannelBtn" onclick="confirmCreateChannel()">${currentLang==='ru'?'Создать канал':'Create channel'}</button>
         <button class="btn-secondary" onclick="closeModal()">${currentLang==='ru'?'Отмена':'Cancel'}</button>
       </div>`;
   } else if(type === 'chooseRecipient'){
@@ -4176,6 +4505,11 @@ function openModal(type, premiumGift=false){
   document.body.appendChild(overlay);
   if(type === 'chooseRecipient') renderContacts('', true);
   if(type === 'newGroup'){
+    selectedGroupMembers = [];
+    renderGroupContacts('');
+    renderGroupChips();
+  }
+  if(type === 'newChannel'){
     selectedGroupMembers = [];
     renderGroupContacts('');
     renderGroupChips();
@@ -4372,12 +4706,48 @@ function confirmCreateGroup(){
     groupName = selectedGroupMembers.slice(0,3).join(', ') + (selectedGroupMembers.length > 3 ? '…' : '');
   }
 
-  const newId = Math.max(...localChats.map(c=>c.id), 0) + 1;
   const initials = groupName.split(' ').map(n=>n[0]).filter(Boolean).slice(0,2).join('').toUpperCase() || '👥';
-  const persona = null; // ИИ-боты убраны — группа не отвечает автоматически
-  const firstSender = selectedGroupMembers[0];
   const now = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
 
+  // если есть подключение к облаку — создаём НАСТОЯЩУЮ группу, общую для всех выбранных реальных участников.
+  // Только текущий аккаунт (создатель) записывается как adminId — у всех остальных участников
+  // isAdmin будет false на их устройствах, и переименовать группу они не смогут.
+  if(cloudReady && currentAccId){
+    const memberIds = [currentAccId];
+    const memberNames = { [currentAccId]: currentUserName || (ru ? 'Вы' : 'You') };
+    selectedGroupMembers.forEach(name => {
+      const contact = directChats.find(c => c.name === name);
+      if(contact && contact.partnerId && !memberIds.includes(contact.partnerId)){
+        memberIds.push(contact.partnerId);
+        memberNames[contact.partnerId] = name;
+      }
+    });
+    const msgObj = {
+      id: genMsgId(), senderId: currentAccId, senderName: currentUserName,
+      text: ru ? `${currentUserName || 'Вы'} создал(а) группу «${groupName}»` : `${currentUserName || 'You'} created the group "${groupName}"`,
+      time: now, ts: Date.now()
+    };
+    db.collection('groups').add({
+      name: groupName,
+      adminId: currentAccId,
+      members: memberIds,
+      memberNames,
+      avatarText: initials,
+      messages: [msgObj],
+      createdAt: Date.now()
+    }).then(docRef => {
+      closeModal();
+      showToast(ru ? `Группа «${groupName}» создана 👥` : `Group "${groupName}" created 👥`);
+      setTimeout(() => openChat('group_' + docRef.id), 300); // ждём, пока снапшот подтянет новую группу в realGroupChats
+    }).catch(e => {
+      console.error(e);
+      showToast(ru ? 'Не удалось создать группу — проверьте подключение' : 'Failed to create group — check your connection');
+    });
+    return;
+  }
+
+  // офлайн-режим (нет подключения к облаку): группа остаётся полностью локальной для этого устройства
+  const newId = Math.max(...localChats.map(c=>c.id), 0) + 1;
   localChats.unshift({
     id: newId,
     name: groupName,
@@ -4387,10 +4757,10 @@ function confirmCreateGroup(){
     avatarClass: 'g'+((newId%5)+1),
     avatarText: initials,
     pinned: false,
-    persona,
+    persona: null,
     isGroup: true,
+    isAdmin: true, // создатель группы — единственный, кто может менять её название
     members: selectedGroupMembers.slice(),
-    groupSender: firstSender,
     messages: [
       {out:true, text: ru ? `${currentUserName || 'Вы'} создал(а) группу «${groupName}»` : `${currentUserName || 'You'} created the group "${groupName}"`, time: now, status:'read'}
     ]
@@ -4401,6 +4771,50 @@ function confirmCreateGroup(){
   openChat(newId);
   scheduleSaveChats();
   showToast(ru ? `Группа «${groupName}» создана 👥` : `Group "${groupName}" created 👥`);
+}
+
+/* ---------------- СОЗДАНИЕ КАНАЛА ---------------- */
+function confirmCreateChannel(){
+  const nameInput = document.getElementById('channelNameInput');
+  const descInput = document.getElementById('channelDescInput');
+  let channelName = nameInput ? nameInput.value.trim() : '';
+  const description = descInput ? descInput.value.trim() : '';
+  const ru = currentLang === 'ru';
+
+  if(!channelName){
+    showToast(ru ? 'Введите название канала' : 'Enter a channel name');
+    return;
+  }
+
+  const newId = Math.max(...localChats.map(c=>c.id), 0) + 1;
+  const initials = channelName.split(' ').map(n=>n[0]).filter(Boolean).slice(0,2).join('').toUpperCase() || '📢';
+  const now = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  const subCount = selectedGroupMembers.length;
+
+  localChats.unshift({
+    id: newId,
+    name: channelName,
+    description,
+    preview: ru ? `Канал создан` : `Channel created`,
+    time: ru ? 'сейчас' : 'now',
+    unread: 0,
+    avatarClass: 'g'+((newId%5)+1),
+    avatarText: '📢',
+    pinned: false,
+    persona: null,
+    isChannel: true,
+    isAdmin: true, // локальный канал — вы всегда его администратор
+    subscribers: selectedGroupMembers.slice(),
+    messages: [
+      {out:true, text: ru ? `Канал «${channelName}» создан${subCount ? ' · подписчиков: ' + subCount : ''}` : `Channel "${channelName}" created${subCount ? ' · subscribers: ' + subCount : ''}`, time: now, status:'read'}
+    ]
+  });
+
+  closeModal();
+  mergeAndRenderChats();
+  openChat(newId);
+  scheduleSaveChats();
+  showToast(ru ? `Канал «${channelName}» создан 📢` : `Channel "${channelName}" created 📢`);
 }
 
 /* ---------------- TOAST ---------------- */
@@ -4758,6 +5172,8 @@ async function completeAuth(name, userAccId, accData={}){
   if(userAccId){
     await loadAndWatchChats(userAccId);
     watchDirectChats(userAccId);
+    watchGlobalChannel(userAccId);
+    watchMyGroups(userAccId);
     watchIncomingCalls(userAccId);
     startPresenceHeartbeat(userAccId);
     startPresencePolling();
