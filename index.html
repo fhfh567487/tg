@@ -527,52 +527,6 @@
   .voice-bar.played{ background: var(--tg-blue); opacity:1; }
   .voice-duration{ font-size:12px; color:var(--text-secondary); flex-shrink:0; min-width:32px; text-align:right; font-variant-numeric: tabular-nums; }
 
-  /* ---------- ВИДЕО-КРУЖОЧКИ (видео-сообщения) ---------- */
-  .bubble-video-note{ padding:0; background:transparent !important; box-shadow:none !important; }
-  .bubble-video-note::before{ display:none !important; }
-  .video-note-msg{
-    position:relative; width:200px; height:200px; border-radius:50%;
-    overflow:hidden; background:#000; cursor:pointer; flex-shrink:0;
-    box-shadow:0 2px 10px rgba(0,0,0,0.25);
-  }
-  .video-note-msg video{ width:100%; height:100%; object-fit:cover; display:block; }
-  .video-note-play-overlay{
-    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    background:rgba(0,0,0,0.18); color:#fff; font-size:34px; pointer-events:none;
-    transition:opacity .12s;
-  }
-  .video-note-play-overlay.hidden{ opacity:0; }
-  .video-note-duration{
-    position:absolute; left:12px; bottom:10px; padding:2px 9px; border-radius:11px;
-    background:rgba(0,0,0,0.45); color:#fff; font-size:12px; font-variant-numeric: tabular-nums;
-    backdrop-filter: blur(2px);
-  }
-  .bubble-video-note .time{
-    position:absolute; right:12px; bottom:10px; background:rgba(0,0,0,0.45); color:#fff !important;
-    padding:2px 7px; border-radius:10px; font-size:11px;
-  }
-  .bubble-video-note .msg-tick{ filter: brightness(3); }
-
-  /* индикатор записи видео-кружка в композере */
-  .video-note-recorder{
-    position:absolute; right:16px; bottom:70px;
-    width:170px; height:170px; border-radius:50%;
-    overflow:hidden; background:#000; box-shadow:0 6px 22px rgba(0,0,0,0.35);
-    border:3px solid var(--bg-sidebar);
-    z-index:30;
-  }
-  .video-note-recorder video{
-    width:100%; height:100%; object-fit:cover; display:block; transform:scaleX(-1);
-  }
-  .video-note-recorder .rec-dot{
-    position:absolute; left:12px; top:12px; width:10px; height:10px; border-radius:50%;
-    background:var(--danger); animation: recDotBlink 1s infinite;
-  }
-  .video-note-recorder .video-rec-timer{
-    position:absolute; left:26px; top:7px; color:#fff; font-size:12px;
-    font-variant-numeric: tabular-nums; text-shadow:0 1px 3px rgba(0,0,0,0.6);
-  }
-
   /* индикатор записи голосового сообщения в композере */
   .composer-field{ flex:1; min-width:0; position:relative; }
   .recording-indicator{
@@ -653,7 +607,6 @@
     background: var(--bg-sidebar);
     border-top:1px solid var(--border);
     flex-shrink:0;
-    position:relative;
   }
   .composer input{
     flex:1;
@@ -827,39 +780,6 @@
 
   /* Gifts */
   .gift-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:16px 18px; }
-  /* панель стикеров / GIF над полем ввода */
-  .sticker-panel{
-    position:absolute; bottom:calc(100% + 8px); right:0; width:320px; max-width:calc(100vw - 24px);
-    background:var(--bg-sidebar); border-radius:16px; box-shadow:0 8px 28px rgba(0,0,0,0.22);
-    z-index:50; overflow:hidden; border:1px solid rgba(120,120,120,0.15);
-  }
-  .sticker-panel-tabs{ display:flex; border-bottom:1px solid rgba(120,120,120,0.15); }
-  .sticker-panel-tabs .spt{
-    flex:1; text-align:center; padding:10px 0; font-size:13.5px; font-weight:600; cursor:pointer;
-    color:var(--text-secondary);
-  }
-  .sticker-panel-tabs .spt.active{ color:var(--tg-blue); box-shadow: inset 0 -2px 0 var(--tg-blue); }
-  .sticker-panel-grid{
-    display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; padding:12px; max-height:260px; overflow-y:auto;
-  }
-  .sticker-panel-grid .sp-item{
-    display:flex; align-items:center; justify-content:center; font-size:34px; line-height:1; border-radius:12px;
-    cursor:pointer; aspect-ratio:1/1; transition:transform .12s, background .12s;
-    position:relative;
-  }
-  .sticker-panel-grid .sp-item:hover{ background:rgba(108,92,231,0.12); transform:scale(1.08); }
-  .sticker-panel-grid .sp-item .sp-gif-tag{
-    position:absolute; bottom:3px; right:5px; font-size:8px; font-weight:800; letter-spacing:.3px;
-    color:#fff; background:rgba(0,0,0,0.55); padding:1px 4px; border-radius:5px;
-  }
-  /* сообщения-стикеры / GIF: отображаются крупно, без обычного фона пузыря */
-  .bubble.bubble-sticker{ background:transparent !important; box-shadow:none !important; padding:2px 4px !important; }
-  .bubble.bubble-sticker .sticker-emoji{ font-size:84px; line-height:1; display:block; text-align:center; filter:drop-shadow(0 2px 6px rgba(0,0,0,0.18)); }
-  .bubble.bubble-sticker .time{ position:static; display:block; text-align:right; margin-top:2px; color:var(--text-secondary); }
-  .bubble.bubble-sticker .gif-badge{
-    display:inline-block; font-size:10px; font-weight:800; letter-spacing:.4px; color:#fff;
-    background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:6px; margin-top:-6px;
-  }
   .gift-card{
     border:1px solid var(--border); border-radius:14px; padding:14px 8px; text-align:center; cursor:pointer;
     transition: transform .12s;
@@ -1326,11 +1246,6 @@ const translations = {
     micDenied:'Нет доступа к микрофону', micNotSupported:'Запись голоса не поддерживается в этом браузере',
     recordingHint:'Проведите, чтобы отменить', voiceSendFailed:'Не удалось отправить голосовое сообщение — возможно, оно слишком большое',
     voiceProcessFailed:'Не удалось обработать запись',
-    videoNoteMessage:'Видео-сообщение', recordVideoNote:'Видео-сообщение', switchToVideoNote:'Записать видео-кружок',
-    switchToVoice:'Записать голосовое сообщение', camDenied:'Нет доступа к камере или микрофону',
-    camNotSupported:'Запись видео-кружков не поддерживается в этом браузере',
-    videoNoteSendFailed:'Не удалось отправить видео-сообщение — возможно, оно слишком большое',
-    videoNoteProcessFailed:'Не удалось обработать видеозапись',
   },
   en: {
     search:'Search', menu:'Menu', newChat:'New chat',
@@ -1372,11 +1287,6 @@ const translations = {
     micDenied:'Microphone access denied', micNotSupported:'Voice recording is not supported in this browser',
     recordingHint:'Slide to cancel', voiceSendFailed:'Failed to send the voice message — it might be too large',
     voiceProcessFailed:'Failed to process the recording',
-    videoNoteMessage:'Video message', recordVideoNote:'Video message', switchToVideoNote:'Record a video message',
-    switchToVoice:'Record a voice message', camDenied:'Camera or microphone access denied',
-    camNotSupported:'Video messages are not supported in this browser',
-    videoNoteSendFailed:'Failed to send the video message — it might be too large',
-    videoNoteProcessFailed:'Failed to process the video recording',
   }
 };
 let currentLang = safeStorage.getItem('tg_lang') || 'ru';
@@ -1640,15 +1550,14 @@ function watchDirectChats(accIdVal){
           }
           return {
             id: m.id || ('legacy_'+idx+'_'+(m.ts||0)),
-            out, text: m.text, file: m.file || null, voice: m.voice || null, videoNote: m.videoNote || null, call: m.call || null,
-            sticker: !!m.sticker, gif: !!m.gif,
+            out, text: m.text, file: m.file || null, voice: m.voice || null, call: m.call || null,
             time: m.time, ts: m.ts || 0, status,
             replyTo: m.replyTo || null, reactions: m.reactions || null,
             edited: !!m.edited, forwarded: m.forwarded || null
           };
         });
         const last = messages[messages.length-1];
-        const lastPreview = last ? (last.call ? callMessagePreviewText(last.call) : (last.voice ? '🎤 ' + t('voiceMessage') : (last.videoNote ? '📹 ' + t('videoNoteMessage') : (last.file ? (last.file.type && last.file.type.startsWith('image/') ? '🖼 ' + t('photoCaption') : '📎 ' + last.file.name) : (last.gif ? (currentLang==='ru'?'GIF ':'GIF ') + last.text : (last.sticker ? (currentLang==='ru'?'Стикер ':'Sticker ') + last.text : last.text)))))) : t('chatCreated');
+        const lastPreview = last ? (last.call ? callMessagePreviewText(last.call) : (last.voice ? '🎤 ' + t('voiceMessage') : (last.file ? (last.file.type && last.file.type.startsWith('image/') ? '🖼 ' + t('photoCaption') : '📎 ' + last.file.name) : last.text))) : t('chatCreated');
         // закреплённое сообщение хранится в самом документе чата (pinnedMsgId), чтобы оба участника видели одно и то же
         const pinnedIdx = data.pinnedMsgId ? messages.findIndex(m => m.id === data.pinnedMsgId) : -1;
         // сохраняем ранее известный статус Premium/аватарки/присутствия, чтобы не мигало, пока не подгрузится актуальный
@@ -1719,8 +1628,7 @@ function watchMyGroups(accIdVal){
           if(out) status = (isPending && idx === sortedRaw.length - 1) ? 'sent' : 'delivered';
           return {
             id: m.id || ('legacy_'+idx+'_'+(m.ts||0)),
-            out, text: m.text, file: m.file || null, voice: m.voice || null, videoNote: m.videoNote || null,
-            sticker: !!m.sticker, gif: !!m.gif,
+            out, text: m.text, file: m.file || null, voice: m.voice || null,
             time: m.time, ts: m.ts || 0, status,
             senderName: m.senderName || '',
             replyTo: m.replyTo || null, reactions: m.reactions || null,
@@ -1752,12 +1660,11 @@ function watchMyGroups(accIdVal){
     }, err => console.warn('Ошибка синхронизации групп:', err));
 }
 // отправка сообщения в настоящую группу — разрешено любому участнику (не только админу)
-async function sendGroupMessage(chat, text, replyTo, isGif){
+async function sendGroupMessage(chat, text, replyTo){
   if(!cloudReady){ showToast('Группы работают только с подключённой базой данных'); return; }
   const time = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
   const msgObj = { id: genMsgId(), senderId: currentAccId, senderName: currentUserName, text, time, ts: Date.now() };
   if(replyTo) msgObj.replyTo = replyTo;
-  if(isGif !== undefined){ if(isGif) msgObj.gif = true; else msgObj.sticker = true; }
   try{
     await db.collection('groups').doc(chat.groupDocId).update({
       messages: firebase.firestore.FieldValue.arrayUnion(msgObj)
@@ -1815,8 +1722,7 @@ async function watchGlobalChannel(accIdVal){
       }
       return {
         id: m.id || ('legacy_'+idx+'_'+(m.ts||0)),
-        out, text: m.text, file: m.file || null, voice: m.voice || null, videoNote: m.videoNote || null,
-        sticker: !!m.sticker, gif: !!m.gif,
+        out, text: m.text, file: m.file || null, voice: m.voice || null,
         time: m.time, ts: m.ts || 0, status,
         senderName: m.senderName || '',
         replyTo: m.replyTo || null, reactions: m.reactions || null,
@@ -1861,13 +1767,12 @@ async function watchGlobalChannel(accIdVal){
   }, err => console.warn('Ошибка синхронизации общего канала:', err));
 }
 // отправка сообщения в общий канал — разрешено только администратору
-async function sendChannelMessage(chat, text, replyTo, isGif){
+async function sendChannelMessage(chat, text, replyTo){
   if(!cloudReady){ showToast('Каналы работают только с подключённой базой данных'); return; }
   if(!chat.isAdmin){ showToast(currentLang==='ru' ? 'Публиковать сообщения может только администратор канала' : 'Only the channel admin can post messages'); return; }
   const time = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
   const msgObj = { id: genMsgId(), senderId: currentAccId, senderName: currentUserName, text, time, ts: Date.now() };
   if(replyTo) msgObj.replyTo = replyTo;
-  if(isGif !== undefined){ if(isGif) msgObj.gif = true; else msgObj.sticker = true; }
   try{
     await db.collection('channels').doc(chat.channelDocId).update({
       messages: firebase.firestore.FieldValue.arrayUnion(msgObj)
@@ -2731,19 +2636,14 @@ function openChat(id, attempt=0){
           <span class="rec-hint">${t('recordingHint')}</span>
         </div>
       </div>
-      <button class="icon-btn" id="stickerBtn" title="${currentLang==='ru'?'Стикеры и GIF':'Stickers & GIF'}" onclick="toggleStickerPanel(event)">🖼️</button>
+      <button class="icon-btn" id="silentSendBtn" title="${currentLang==='ru'?'Отправить без звука':'Send silently'}" onclick="toggleSilentSend()">🔔</button>
       <button class="icon-btn" id="giftBtn" title="${t('sendGift')}" onclick="openPanel('gifts')">🎁</button>
-      <button class="send-btn" id="actionBtn" onclick="handleActionBtn()" title="${t('recordVideoNote')}"></button>
-      <div class="video-note-recorder" id="videoNoteRecorder" style="display:none;">
-        <video id="videoNotePreview" autoplay muted playsinline></video>
-        <span class="rec-dot"></span>
-        <span class="video-rec-timer" id="videoRecTimer">0:00</span>
-      </div>
+      <button class="send-btn" id="actionBtn" onclick="handleActionBtn()" title="${t('recordVoice')}"></button>
     </div>`;
-  recordMode = 'videonote';
+  silentSendActive = false;
   renderMessages(chat);
   renderPinnedBanner(chat);
-  setActionButtonMode(recordMode);
+  setActionButtonMode('mic');
   applyChatWallpaper(chat.id);
   if(chat.isChannel && !chat.isAdmin){
     const composer = document.querySelector('.composer');
@@ -2768,12 +2668,10 @@ function renderMessages(chat){
     }
     const isImage = m.file && m.file.type && m.file.type.startsWith('image/');
     const isVoice = !!m.voice;
-    const isVideoNote = !!m.videoNote;
     const isCall = !!m.call;
-    const isSticker = !!m.sticker || !!m.gif;
-    const isPlainText = !isCall && !isVoice && !isVideoNote && !m.file && !isSticker;
+    const isPlainText = !isCall && !isVoice && !m.file;
     const uid = chat.id + '_' + idx;
-    const content = isCall ? renderCallContent(m.call, m.out) : (isVoice ? renderVoiceContent(m.voice, uid) : (isVideoNote ? renderVideoNoteContent(m.videoNote, uid) : (m.file ? renderFileContent(m.file, m.text) : (isSticker ? `<span class="sticker-emoji">${escapeHtml(m.text||'')}</span>${m.gif ? '<span class=\"gif-badge\">GIF</span>' : ''}` : formatMessageText(m.text || '')))));
+    const content = isCall ? renderCallContent(m.call, m.out) : (isVoice ? renderVoiceContent(m.voice, uid) : (m.file ? renderFileContent(m.file, m.text) : formatMessageText(m.text || '')));
     const linkPreview = isPlainText ? linkPreviewHtml(m.text) : '';
     const forwardedHtml = m.forwarded ? `<div class="forwarded-label">↪ ${ru?'Переслано от':'Forwarded from'} ${escapeHtml(m.forwarded.fromName||'')}</div>` : '';
     const replyHtml = m.replyTo ? `<div class="reply-quote"><div class="rq-name">${escapeHtml(m.replyTo.name||'')}</div><div class="rq-text">${escapeHtml(m.replyTo.text||'')}</div></div>` : '';
@@ -2790,14 +2688,13 @@ function renderMessages(chat){
     return `<div class="msg-row ${m.out ? 'out':'in'}" data-idx="${idx}">
       <span class="swipe-reply-icon">↩️</span>
       <div class="bubble-wrap">
-        <div class="bubble ${isImage ? 'bubble-media' : ''} ${isVoice ? 'bubble-voice' : ''} ${isVideoNote ? 'bubble-video-note' : ''} ${isSticker ? 'bubble-sticker' : ''}">${forwardedHtml}${replyHtml}${content}${linkPreview}${editedHtml}${silentHtml}<span class="time">${m.time}</span>${tick}</div>
+        <div class="bubble ${isImage ? 'bubble-media' : ''} ${isVoice ? 'bubble-voice' : ''}">${forwardedHtml}${replyHtml}${content}${linkPreview}${editedHtml}${silentHtml}<span class="time">${m.time}</span>${tick}</div>
       </div>
       ${reactionsHtml}
     </div>`;
   }).join('');
   box.scrollTop = box.scrollHeight;
   attachVoicePlayerHandlers();
-  attachVideoNotePlayerHandlers();
   attachMessageInteractionHandlers(chat);
 }
 
@@ -2806,88 +2703,6 @@ function renderMessages(chat){
 function genMsgId(){ return 'm'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 const QUICK_REACTIONS = ['👍','❤️','😂','😮','😢','🙏'];
 let composerContext = null; // {mode:'reply'|'edit', chatId, idx, id, name, preview, text}
-
-/* ---------------- ПАНЕЛЬ СТИКЕРОВ / GIF ---------------- */
-const STICKERS_LIST = ['😂','😍','😎','🥳','😭','😡','🤔','😴','🙄','😱','🤗','😇','🤩','🥶','🤯','😜','🙈','💩','👻','💀','🤡','🥺','😏','🤤','👀','💯','🔥','✨','🎉','🎊','🥂','☕','🍕','🍔','🍺','🌈','⚡','💥','💤','🎵'];
-const GIFS_LIST = ['👏','🙌','👋','🤝','💃','🕺','🏃','🤸','🤦','🤷','🚀','🎆','🌊','❤️‍🔥','😹','🤣','😵‍💫','🫡','🫠','🥹'];
-let stickerPanelTab = 'stickers';
-function toggleStickerPanel(e){
-  if(e) e.stopPropagation();
-  const existing = document.getElementById('stickerPanel');
-  if(existing){ existing.remove(); return; }
-  const composer = document.querySelector('.composer');
-  if(!composer) return;
-  const panel = document.createElement('div');
-  panel.className = 'sticker-panel';
-  panel.id = 'stickerPanel';
-  panel.onclick = (ev)=> ev.stopPropagation();
-  composer.appendChild(panel);
-  renderStickerPanel();
-  document.addEventListener('click', closeStickerPanelOutside);
-}
-function closeStickerPanelOutside(e){
-  const panel = document.getElementById('stickerPanel');
-  if(panel && !panel.contains(e.target) && !e.target.closest('#stickerBtn')){
-    panel.remove();
-    document.removeEventListener('click', closeStickerPanelOutside);
-  }
-}
-function setStickerTab(tab){
-  stickerPanelTab = tab;
-  renderStickerPanel();
-}
-function renderStickerPanel(){
-  const panel = document.getElementById('stickerPanel');
-  if(!panel) return;
-  const ru = currentLang === 'ru';
-  const isGif = stickerPanelTab === 'gif';
-  const list = isGif ? GIFS_LIST : STICKERS_LIST;
-  panel.innerHTML = `
-    <div class="sticker-panel-tabs">
-      <div class="spt ${!isGif?'active':''}" onclick="setStickerTab('stickers')">${ru?'Стикеры':'Stickers'}</div>
-      <div class="spt ${isGif?'active':''}" onclick="setStickerTab('gif')">GIF</div>
-    </div>
-    <div class="sticker-panel-grid">
-      ${list.map(e=>`<div class="sp-item" onclick="sendSticker('${e}', ${isGif})">${e}${isGif?'<span class="sp-gif-tag">GIF</span>':''}</div>`).join('')}
-    </div>
-  `;
-}
-function sendSticker(content, isGif){
-  const panel = document.getElementById('stickerPanel');
-  if(panel){ panel.remove(); document.removeEventListener('click', closeStickerPanelOutside); }
-  const chat = chats.find(c=>c.id===activeChatId);
-  if(!chat) return;
-  const replyPayload = (composerContext && composerContext.mode === 'reply' && composerContext.chatId === chat.id)
-    ? { id: composerContext.id, name: composerContext.name, text: composerContext.preview } : null;
-  cancelComposerContext();
-  clearDraft(chat.id);
-  renderChatList(document.getElementById('searchInput').value);
-
-  if(chat.isChannel && chat.real){
-    if(!chat.isAdmin){ showToast(currentLang==='ru' ? 'Публиковать сообщения может только администратор канала' : 'Only the channel admin can post messages'); return; }
-    sendChannelMessage(chat, content, replyPayload, isGif);
-    return;
-  }
-  if(chat.isChannel && !chat.isAdmin){ showToast(currentLang==='ru' ? 'Публиковать сообщения может только администратор канала' : 'Only the channel admin can post messages'); return; }
-  if(chat.isGroup && chat.real){ sendGroupMessage(chat, content, replyPayload, isGif); return; }
-  if(chat.real){ sendDirectMessage(chat, content, replyPayload, isGif); return; }
-
-  const time = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
-  const msg = {id: genMsgId(), out:true, text:content, time, status:'sent'};
-  if(isGif) msg.gif = true; else msg.sticker = true;
-  if(replyPayload) msg.replyTo = replyPayload;
-  chat.messages.push(msg);
-  chat.preview = messagePreviewText(msg);
-  chat.time = time;
-  renderMessages(chat);
-  renderChatList(document.getElementById('searchInput').value);
-  scheduleSaveChats();
-  setTimeout(()=>{
-    const m = chat.messages[chat.messages.length-1];
-    if(m && m.status==='sent'){ m.status='delivered'; if(activeChatId===chat.id) renderMessages(chat); scheduleSaveChats(); }
-  }, 400);
-  scheduleBotReply(chat.id);
-}
 
 /* ---------------- НОВОЕ: ПАПКИ ЧАТОВ ---------------- */
 let activeFolder = 'all'; // all | unread | personal | groups
@@ -3029,6 +2844,21 @@ function jumpChatSearch(dir){
   jumpToMessage(chatSearchState.matches[chatSearchState.pointer]);
 }
 
+let silentSendActive = false;
+
+/* 6) отправка "без звука" — как в оригинальном Telegram (long-press на кнопку отправки) */
+function toggleSilentSend(forceOff){
+  const ru = currentLang === 'ru';
+  silentSendActive = forceOff === true ? false : !silentSendActive;
+  const btn = document.getElementById('silentSendBtn');
+  if(btn){
+    btn.textContent = silentSendActive ? '🔕' : '🔔';
+    btn.classList.toggle('active', silentSendActive);
+    btn.title = silentSendActive ? (ru?'Без звука: включено':'Silent: on') : (ru?'Отправить без звука':'Send silently');
+  }
+  if(forceOff !== true) showToast(silentSendActive ? (ru?'Следующее сообщение будет отправлено без звука 🔕':'Next message will be sent silently 🔕') : (ru?'Обычная отправка':'Normal sending'));
+}
+
 /* 10) фон чата (обои) — сохраняется отдельно для каждого чата */
 const WALLPAPER_PRESETS = [
   {id:'default', css:'', icon:'✖️'},
@@ -3076,10 +2906,7 @@ function messagePreviewText(m){
   const ru = currentLang === 'ru';
   if(m.call) return callMessagePreviewText(m.call);
   if(m.voice) return '🎤 ' + t('voiceMessage');
-  if(m.videoNote) return '📹 ' + t('videoNoteMessage');
   if(m.file) return (m.file.type && m.file.type.startsWith('image/')) ? '🖼 ' + t('photoCaption') : '📎 ' + m.file.name;
-  if(m.gif) return (ru ? 'GIF ' : 'GIF ') + (m.text || '');
-  if(m.sticker) return (ru ? 'Стикер ' : 'Sticker ') + (m.text || '');
   return m.text || (ru ? '' : '');
 }
 
@@ -3124,7 +2951,7 @@ function startEdit(chatId, idx){
   const chat = chats.find(c=>c.id===chatId);
   if(!chat) return;
   const m = chat.messages[idx];
-  if(!m || !m.out || m.file || m.voice || m.videoNote || m.call) return;
+  if(!m || !m.out || m.file || m.voice || m.call) return;
   composerContext = { mode:'edit', chatId, idx, id:m.id, text:m.text||'' };
   const input = document.getElementById('msgInput');
   if(input){ input.value = m.text || ''; input.focus(); }
@@ -3257,9 +3084,7 @@ function forwardMessageTo(srcChatId, idx, destChatId){
 
   if(destChat.real){
     if(!cloudReady){ showToast(ru ? 'Личные сообщения работают только с подключённой базой данных' : 'Direct messages require a connected database'); return; }
-    const msgObj = { id: genMsgId(), senderId: currentAccId, senderName: currentUserName, text: m.text||'', file: m.file||null, voice: m.voice||null, videoNote: m.videoNote||null, call: m.call||null, forwarded, time, ts: Date.now() };
-    if(m.sticker) msgObj.sticker = true;
-    if(m.gif) msgObj.gif = true;
+    const msgObj = { id: genMsgId(), senderId: currentAccId, senderName: currentUserName, text: m.text||'', file: m.file||null, voice: m.voice||null, call: m.call||null, forwarded, time, ts: Date.now() };
     db.collection('directChats').doc(destChat.directId).update({
       messages: firebase.firestore.FieldValue.arrayUnion(msgObj),
       lastMessage: messagePreviewText(msgObj),
@@ -3269,9 +3094,7 @@ function forwardMessageTo(srcChatId, idx, destChatId){
   } else {
     const localChat = localChats.find(c=>c.id===destChat.id);
     if(!localChat) return;
-    const newMsg = { id: genMsgId(), out:true, text:m.text||'', file:m.file||null, voice:m.voice||null, videoNote:m.videoNote||null, call:m.call||null, forwarded, time, status:'sent' };
-    if(m.sticker) newMsg.sticker = true;
-    if(m.gif) newMsg.gif = true;
+    const newMsg = { id: genMsgId(), out:true, text:m.text||'', file:m.file||null, voice:m.voice||null, call:m.call||null, forwarded, time, status:'sent' };
     localChat.messages.push(newMsg);
     localChat.preview = messagePreviewText(newMsg);
     localChat.time = time;
@@ -3397,8 +3220,8 @@ function openMsgContextMenu(chatId, idx, x, y){
   const m = chat.messages[idx];
   if(!m) return;
   const ru = currentLang === 'ru';
-  const canEdit = m.out && !m.file && !m.voice && !m.videoNote && !m.call && !m.sticker && !m.gif;
-  const canCopy = !!m.text && !m.file && !m.voice && !m.videoNote && !m.call && !m.sticker && !m.gif;
+  const canEdit = m.out && !m.file && !m.voice && !m.call;
+  const canCopy = !!m.text && !m.file && !m.voice && !m.call;
 
   const menu = document.createElement('div');
   menu.className = 'ctx-menu msg-ctx-menu';
@@ -3520,54 +3343,6 @@ function attachVoicePlayerHandlers(){
   });
 }
 
-// отрисовка круглого видео-сообщения ("видео-кружка")
-function renderVideoNoteContent(videoNote, uid){
-  const durationText = formatDuration(videoNote.duration || 0);
-  return `
-    <div class="video-note-msg" id="videonote-${uid}" onclick="toggleVideoNotePlay('${uid}')">
-      <video class="video-note-video" id="videonote-video-${uid}" src="${videoNote.dataUrl}" preload="metadata" playsinline loop></video>
-      <div class="video-note-play-overlay" id="videonote-overlay-${uid}">▶</div>
-      <span class="video-note-duration" id="videonote-dur-${uid}">${durationText}</span>
-    </div>`;
-}
-// текущее воспроизводимое видео-сообщение (чтобы одновременно играло только одно)
-let currentPlayingVideoNote = null;
-function toggleVideoNotePlay(uid){
-  const video = document.getElementById('videonote-video-'+uid);
-  const overlay = document.getElementById('videonote-overlay-'+uid);
-  if(!video || !overlay) return;
-  if(currentPlayingVideoNote && currentPlayingVideoNote !== video && !currentPlayingVideoNote.paused){
-    currentPlayingVideoNote.pause();
-  }
-  if(video.paused){
-    video.play().catch(()=>{});
-    overlay.classList.add('hidden');
-    currentPlayingVideoNote = video;
-  } else {
-    video.pause();
-    overlay.classList.remove('hidden');
-  }
-}
-// привязываем обработчики окончания/паузы к видео-кружочкам после перерисовки сообщений
-function attachVideoNotePlayerHandlers(){
-  document.querySelectorAll('.video-note-video').forEach(video=>{
-    const uid = video.id.replace('videonote-video-','');
-    const overlay = document.getElementById('videonote-overlay-'+uid);
-    const durEl = document.getElementById('videonote-dur-'+uid);
-    video.ontimeupdate = () => {
-      if(!video.duration || isNaN(video.duration) || !durEl) return;
-      durEl.textContent = formatDuration(video.duration - video.currentTime);
-    };
-    video.onpause = () => { if(overlay) overlay.classList.remove('hidden'); };
-    video.onplay = () => { if(overlay) overlay.classList.add('hidden'); };
-    video.onended = () => {
-      if(overlay) overlay.classList.remove('hidden');
-      if(durEl) durEl.textContent = formatDuration(video.duration || 0);
-      if(currentPlayingVideoNote === video) currentPlayingVideoNote = null;
-    };
-  });
-}
-
 // отрисовка вложения (фото — превью, любой другой файл — карточка со скачиванием)
 function renderFileContent(file, caption){
   const safeName = escapeHtml(file.name || 'file');
@@ -3646,17 +3421,15 @@ async function sendDirectFileMessage(chat, fileObj){
     showToast(currentLang==='ru' ? 'Не удалось отправить файл — возможно, он слишком большой' : 'Failed to send the file — it might be too large');
   }
 }
-/* ---------------- ГОЛОСОВЫЕ И ВИДЕО СООБЩЕНИЯ (ЗАПИСЬ) ---------------- */
+/* ---------------- ГОЛОСОВЫЕ СООБЩЕНИЯ (ЗАПИСЬ) ---------------- */
 let mediaRecorder = null;
 let recordedChunks = [];
 let recordingSeconds = 0;
 let recordingTimerInterval = null;
 let recordingCancelled = false;
-let recordMode = 'videonote'; // теперь единственный режим записи — видео-кружок
-let recordingKind = 'videonote'; // какого типа запись идёт прямо сейчас
 const MAX_RECORDING_SECONDS = 300; // ограничение демо — 5 минут
 
-// переключаем иконку/поведение кнопки композера: отправить текст / начать запись видео-кружка / остановить запись
+// переключаем иконку/поведение кнопки композера: отправить текст / начать запись / остановить запись
 function setActionButtonMode(mode){
   const btn = document.getElementById('actionBtn');
   if(!btn) return;
@@ -3669,8 +3442,8 @@ function setActionButtonMode(mode){
     btn.title = t('stopAndSend');
     btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="6" y="6" width="12" height="12" rx="2" fill="white"/></svg>';
   } else {
-    btn.title = t('recordVideoNote');
-    btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 8.5C3 7.12 4.12 6 5.5 6h7c1.38 0 2.5 1.12 2.5 2.5v7c0 1.38-1.12 2.5-2.5 2.5h-7C4.12 18 3 16.88 3 15.5v-7z" fill="white"/><path d="M15 10.4l4.2-2.5c.5-.3 1.13.06 1.13.65v6.9c0 .59-.63.95-1.13.65L15 13.6v-3.2z" fill="white"/></svg>';
+    btn.title = t('recordVoice');
+    btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z" stroke="white" stroke-width="1.6"/><path d="M19 11a7 7 0 0 1-14 0" stroke="white" stroke-width="1.6" stroke-linecap="round"/><line x1="12" y1="18" x2="12" y2="22" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>';
   }
 }
 // вызывается при вводе текста — не переключаем режим, пока идёт запись
@@ -3678,14 +3451,13 @@ function updateActionBtn(){
   const input = document.getElementById('msgInput');
   if(!input) return;
   if(mediaRecorder && mediaRecorder.state === 'recording') return;
-  setActionButtonMode(input.value.trim() ? 'send' : 'videonote');
+  setActionButtonMode(input.value.trim() ? 'send' : 'mic');
 }
 function handleActionBtn(){
   const btn = document.getElementById('actionBtn');
-  const mode = btn ? btn.dataset.mode : 'videonote';
+  const mode = btn ? btn.dataset.mode : 'mic';
   if(mode === 'send') sendMessage();
   else if(mode === 'recording') stopAndSendVoiceRecording();
-  else if(mode === 'videonote') startVideoNoteRecording();
   else startVoiceRecording();
 }
 function showRecordingUI(show){
@@ -3698,6 +3470,10 @@ function showRecordingUI(show){
   if(attachBtn) attachBtn.style.visibility = show ? 'hidden' : '';
   if(giftBtn) giftBtn.style.visibility = show ? 'hidden' : '';
 }
+function updateRecTimerDisplay(){
+  const el = document.getElementById('recTimer');
+  if(el) el.textContent = formatDuration(recordingSeconds);
+}
 async function startVoiceRecording(){
   if(!activeChatId) return;
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined'){
@@ -3708,7 +3484,6 @@ async function startVoiceRecording(){
     const stream = await navigator.mediaDevices.getUserMedia({audio:true});
     recordedChunks = [];
     recordingCancelled = false;
-    recordingKind = 'voice';
     let mimeType = '';
     if(window.MediaRecorder && MediaRecorder.isTypeSupported){
       if(MediaRecorder.isTypeSupported('audio/webm')) mimeType = 'audio/webm';
@@ -3737,68 +3512,6 @@ async function startVoiceRecording(){
     showToast(t('micDenied'));
   }
 }
-// запись видео-кружка (круглое видео-сообщение, как в Telegram)
-async function startVideoNoteRecording(){
-  if(!activeChatId) return;
-  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined'){
-    showToast(t('camNotSupported'));
-    return;
-  }
-  try{
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio:true,
-      video:{ facingMode:'user', width:{ideal:480}, height:{ideal:480} }
-    });
-    recordedChunks = [];
-    recordingCancelled = false;
-    recordingKind = 'videonote';
-    let mimeType = '';
-    if(window.MediaRecorder && MediaRecorder.isTypeSupported){
-      if(MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) mimeType = 'video/webm;codecs=vp9,opus';
-      else if(MediaRecorder.isTypeSupported('video/webm')) mimeType = 'video/webm';
-      else if(MediaRecorder.isTypeSupported('video/mp4')) mimeType = 'video/mp4';
-    }
-    mediaRecorder = mimeType ? new MediaRecorder(stream, {mimeType}) : new MediaRecorder(stream);
-    mediaRecorder.ondataavailable = e => { if(e.data && e.data.size > 0) recordedChunks.push(e.data); };
-    mediaRecorder.onstop = () => {
-      stream.getTracks().forEach(tr => tr.stop());
-      clearInterval(recordingTimerInterval);
-      showVideoNotePreview(false);
-      if(!recordingCancelled) finalizeVideoNoteRecording();
-      recordedChunks = [];
-    };
-    const previewVideo = document.getElementById('videoNotePreview');
-    if(previewVideo) previewVideo.srcObject = stream;
-    showVideoNotePreview(true);
-    mediaRecorder.start();
-    recordingSeconds = 0;
-    updateRecTimerDisplay();
-    recordingTimerInterval = setInterval(()=>{
-      recordingSeconds++;
-      updateRecTimerDisplay();
-      if(recordingSeconds >= MAX_RECORDING_SECONDS) stopAndSendVoiceRecording();
-    }, 1000);
-    showRecordingUI(true);
-    setActionButtonMode('recording');
-  }catch(err){
-    console.error(err);
-    showToast(t('camDenied'));
-  }
-}
-function showVideoNotePreview(show){
-  const wrap = document.getElementById('videoNoteRecorder');
-  if(wrap) wrap.style.display = show ? 'block' : 'none';
-  if(!show){
-    const previewVideo = document.getElementById('videoNotePreview');
-    if(previewVideo) previewVideo.srcObject = null;
-  }
-}
-function updateRecTimerDisplay(){
-  const el = document.getElementById('recTimer');
-  if(el) el.textContent = formatDuration(recordingSeconds);
-  const videoEl = document.getElementById('videoRecTimer');
-  if(videoEl) videoEl.textContent = formatDuration(recordingSeconds);
-}
 function stopAndSendVoiceRecording(){
   if(!mediaRecorder || mediaRecorder.state === 'inactive') return;
   recordingCancelled = false;
@@ -3807,14 +3520,12 @@ function stopAndSendVoiceRecording(){
 function cancelVoiceRecording(){
   if(!mediaRecorder || mediaRecorder.state === 'inactive'){
     showRecordingUI(false);
-    showVideoNotePreview(false);
     updateActionBtn();
     return;
   }
   recordingCancelled = true;
   mediaRecorder.stop();
   showRecordingUI(false);
-  showVideoNotePreview(false);
   updateActionBtn();
 }
 function finalizeVoiceRecording(){
@@ -3833,25 +3544,6 @@ function finalizeVoiceRecording(){
     sendVoiceMessage(chat, voiceObj);
   };
   reader.onerror = () => showToast(t('voiceProcessFailed'));
-  reader.readAsDataURL(blob);
-}
-// формируем готовый видео-кружок и отправляем его
-function finalizeVideoNoteRecording(){
-  const duration = recordingSeconds;
-  const mimeType = (mediaRecorder && mediaRecorder.mimeType) || 'video/webm';
-  const blob = new Blob(recordedChunks, {type: mimeType});
-  showRecordingUI(false);
-  updateActionBtn();
-  if(duration < 1 || blob.size === 0) return; // слишком короткая запись — игнорируем
-  if(blob.size > MAX_FILE_SIZE){ showToast(t('fileTooLarge')); return; }
-  const reader = new FileReader();
-  reader.onload = () => {
-    const chat = chats.find(c=>c.id===activeChatId);
-    if(!chat) return;
-    const videoNoteObj = { dataUrl: reader.result, duration, size: blob.size, mimeType };
-    sendVideoNoteMessage(chat, videoNoteObj);
-  };
-  reader.onerror = () => showToast(t('videoNoteProcessFailed'));
   reader.readAsDataURL(blob);
 }
 
@@ -3892,46 +3584,6 @@ async function sendDirectVoiceMessage(chat, voiceObj){
   }catch(e){
     console.error(e);
     showToast(t('voiceSendFailed'));
-  }
-}
-
-/* ---------------- ОТПРАВКА ВИДЕО-КРУЖОЧКОВ ---------------- */
-function sendVideoNoteMessage(chat, videoNoteObj){
-  if(chat.real){
-    sendDirectVideoNoteMessage(chat, videoNoteObj);
-    return;
-  }
-  const time = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
-  const msg = { out:true, time, status:'sent', videoNote: videoNoteObj };
-  chat.messages.push(msg);
-  chat.preview = '📹 ' + t('videoNoteMessage');
-  chat.time = time;
-  if(activeChatId===chat.id) renderMessages(chat);
-  renderChatList(document.getElementById('searchInput').value);
-  scheduleSaveChats();
-  setTimeout(()=>{
-    msg.status = 'delivered';
-    if(activeChatId===chat.id) renderMessages(chat);
-    scheduleSaveChats();
-  }, 400);
-  scheduleBotReply(chat.id);
-}
-
-// отправка видео-кружка настоящему собеседнику — так же, как файлы, через Firestore
-async function sendDirectVideoNoteMessage(chat, videoNoteObj){
-  if(!cloudReady){ showToast('Личные сообщения работают только с подключённой базой данных'); return; }
-  const time = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
-  const preview = '📹 ' + t('videoNoteMessage');
-  const msgObj = { senderId: currentAccId, senderName: currentUserName, videoNote: videoNoteObj, text:'', time, ts: Date.now() };
-  try{
-    await db.collection('directChats').doc(chat.directId).update({
-      messages: firebase.firestore.FieldValue.arrayUnion(msgObj),
-      lastMessage: preview,
-      lastTime: time
-    });
-  }catch(e){
-    console.error(e);
-    showToast(t('videoNoteSendFailed'));
   }
 }
 
@@ -4432,6 +4084,7 @@ function sendMessage(){
   const time = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
   const msg = {id: genMsgId(), out:true, text, time, status:'sent'};
   if(replyPayload) msg.replyTo = replyPayload;
+  if(silentSendActive){ msg.silent = true; toggleSilentSend(true); }
   chat.messages.push(msg);
   chat.preview = text;
   chat.time = time;
@@ -4446,16 +4099,15 @@ function sendMessage(){
 }
 
 // отправка сообщения настоящему человеку — пишем прямо в общий документ чата в Firestore
-async function sendDirectMessage(chat, text, replyTo, isGif){
+async function sendDirectMessage(chat, text, replyTo){
   if(!cloudReady){ showToast('Личные сообщения работают только с подключённой базой данных'); return; }
   const time = new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
   const msgObj = { id: genMsgId(), senderId: currentAccId, senderName: currentUserName, text, time, ts: Date.now() };
   if(replyTo) msgObj.replyTo = replyTo;
-  if(isGif !== undefined){ if(isGif) msgObj.gif = true; else msgObj.sticker = true; }
   try{
     await db.collection('directChats').doc(chat.directId).update({
       messages: firebase.firestore.FieldValue.arrayUnion(msgObj),
-      lastMessage: isGif !== undefined ? messagePreviewText(msgObj) : text,
+      lastMessage: text,
       lastTime: time
     });
   }catch(e){
@@ -5968,4 +5620,3 @@ renderChatList();
 </script>
 </body>
 </html>
-
