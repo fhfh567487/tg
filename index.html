@@ -198,6 +198,136 @@
   .chat-item.active .badge{ background:#fff; color:var(--tg-blue); }
   .pinned-icon{ color: var(--text-secondary); margin-right:2px; }
 
+  /* ---------- STORIES BAR ---------- */
+  .stories-bar{
+    display:flex;
+    gap:14px;
+    padding:12px 14px 10px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    flex-shrink:0;
+    border-bottom:1px solid var(--border);
+  }
+  .stories-bar::-webkit-scrollbar{ height:0; }
+  .story-item{
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    cursor:pointer; flex-shrink:0; width:60px;
+  }
+  .story-ring{
+    width:58px; height:58px; border-radius:50%;
+    padding:2.5px;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--border);
+    flex-shrink:0;
+    position:relative;
+    transition: transform .12s;
+  }
+  .story-item:active .story-ring{ transform: scale(0.94); }
+  .story-ring.has-story{
+    background: linear-gradient(135deg, var(--aurora-3), var(--aurora-1), var(--aurora-2));
+  }
+  .story-ring .avatar{ width:100%; height:100%; border:2.5px solid var(--bg-sidebar); }
+  .story-add-badge{
+    position:absolute; right:-2px; bottom:-2px;
+    width:19px; height:19px; border-radius:50%;
+    background: linear-gradient(135deg,var(--aurora-1),var(--aurora-2));
+    color:#fff; font-size:13px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    border:2.5px solid var(--bg-sidebar);
+  }
+  .story-item .label{
+    font-size:11.5px; color:var(--text-secondary);
+    max-width:62px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  /* fullscreen story composer (choose caption before posting) */
+  .story-composer{
+    position:fixed; inset:0; z-index:220;
+    background:#000;
+    display:flex; flex-direction:column;
+  }
+  .story-composer .story-media-wrap{
+    flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;
+  }
+  .story-composer .story-media-wrap img,
+  .story-composer .story-media-wrap video{
+    max-width:100%; max-height:100%; object-fit:contain;
+  }
+  .story-composer-close{
+    position:absolute; top:14px; left:14px; z-index:2;
+    width:36px; height:36px; border-radius:50%;
+    background:rgba(0,0,0,0.4); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; cursor:pointer;
+  }
+  .story-composer-bottom{
+    display:flex; align-items:center; gap:10px;
+    padding:12px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(0deg, rgba(0,0,0,0.6), rgba(0,0,0,0));
+  }
+  .story-composer-bottom input{
+    flex:1; border:none; outline:none; border-radius:20px;
+    padding:11px 16px; font-size:14.5px;
+    background: rgba(255,255,255,0.14); color:#fff;
+  }
+  .story-composer-bottom input::placeholder{ color: rgba(255,255,255,0.7); }
+  .story-composer-send{
+    width:42px; height:42px; border-radius:50%; flex-shrink:0;
+    background: linear-gradient(135deg,var(--aurora-1),var(--aurora-2));
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:18px; cursor:pointer; border:none;
+  }
+
+  /* fullscreen story viewer */
+  .story-viewer{
+    position:fixed; inset:0; z-index:230;
+    background:#000;
+    display:flex; flex-direction:column;
+    user-select:none;
+  }
+  .story-progress-row{
+    display:flex; gap:4px; padding:8px 10px 0;
+  }
+  .story-progress-seg{
+    flex:1; height:3px; border-radius:2px; background:rgba(255,255,255,0.3); overflow:hidden;
+  }
+  .story-progress-fill{
+    height:100%; width:0%; background:#fff; border-radius:2px;
+  }
+  .story-progress-seg.done .story-progress-fill{ width:100% !important; }
+  .story-viewer-header{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 14px;
+    color:#fff;
+  }
+  .story-viewer-header .avatar{ width:34px; height:34px; font-size:14px; }
+  .story-viewer-header .sv-name{ font-weight:600; font-size:14px; }
+  .story-viewer-header .sv-time{ font-size:12px; color:rgba(255,255,255,0.65); }
+  .story-viewer-header .sv-spacer{ flex:1; }
+  .story-viewer-header .sv-icon{
+    width:32px; height:32px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:16px; cursor:pointer;
+  }
+  .story-viewer-header .sv-icon:hover{ background:rgba(255,255,255,0.15); }
+  .story-viewer-media{
+    flex:1; position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  .story-viewer-media img, .story-viewer-media video{
+    max-width:100%; max-height:100%; object-fit:contain;
+  }
+  .story-viewer-nav{
+    position:absolute; inset:0; display:flex;
+  }
+  .story-viewer-nav .zone{ flex:1; }
+  .story-viewer-caption{
+    position:absolute; left:0; right:0; bottom:0;
+    padding:40px 18px 22px;
+    background: linear-gradient(0deg, rgba(0,0,0,0.75), rgba(0,0,0,0));
+    color:#fff; font-size:14.5px; line-height:1.4;
+    pointer-events:none;
+  }
+
   /* long-press context menu for chat list items */
   .ctx-menu{
     position:fixed;
@@ -985,6 +1115,9 @@
       <div class="settings-item" onclick="openPanel('settings')"><div class="ic" style="background:#8a97a3">⚙️</div><div class="label" id="dmSettings">Настройки</div></div>
       <div class="settings-item" onclick="logout()"><div class="ic" style="background:#e53935">🚪</div><div class="label" id="dmLogout">Выйти</div></div>
     </div>
+
+    <div class="stories-bar" id="storiesBar"></div>
+    <input type="file" id="storyFileInput" accept="image/*,video/*" style="display:none" onchange="handleStoryFileSelected(event)">
 
     <div class="folder-tabs" id="folderTabs"></div>
     <div class="chat-list" id="chatList"></div>
@@ -1909,6 +2042,7 @@ function renderChatList(filter=''){
   const list = document.getElementById('chatList');
   list.innerHTML = '';
   renderFolderTabs();
+  renderStoriesBar();
 
   if(chatListView === 'archived'){
     const back = document.createElement('div');
@@ -2012,6 +2146,235 @@ function buildChatItemEl(c){
   return div;
 }
 function filterChats(v){ renderChatList(v); }
+
+/* ---------------- ИСТОРИИ (STORIES) ---------------- */
+const STORY_TTL_MS = 24 * 60 * 60 * 1000; // истории живут 24 часа, как в оригинале
+const STORY_MAX_FILE_SIZE = 30 * 1024 * 1024; // 30 МБ — ограничение демо-режима
+let pendingStoryMedia = null; // {type, dataUrl} — выбранное, но ещё не опубликованное медиа
+let storyViewerState = null;  // {stories, index, timer, paused}
+
+function storiesStorageKey(){
+  return 'tg_stories_' + (currentAccId || 'guest');
+}
+function getMyStoriesRaw(){
+  try{ return JSON.parse(safeStorage.getItem(storiesStorageKey()) || '[]'); }
+  catch(e){ return []; }
+}
+function saveMyStoriesRaw(arr){
+  safeStorage.setItem(storiesStorageKey(), JSON.stringify(arr));
+}
+function getMyStories(){
+  const now = Date.now();
+  const all = getMyStoriesRaw();
+  const fresh = all.filter(s => (now - s.ts) < STORY_TTL_MS);
+  if(fresh.length !== all.length) saveMyStoriesRaw(fresh); // выбрасываем протухшие
+  return fresh.sort((a,b) => a.ts - b.ts);
+}
+function formatStoryTime(ts){
+  const diffMin = Math.floor((Date.now() - ts) / 60000);
+  const ru = currentLang === 'ru';
+  if(diffMin < 1) return ru ? 'только что' : 'just now';
+  if(diffMin < 60) return `${diffMin} ${ru ? 'мин назад' : 'min ago'}`;
+  const diffH = Math.floor(diffMin / 60);
+  return `${diffH} ${ru ? 'ч назад' : 'h ago'}`;
+}
+
+function renderStoriesBar(){
+  const bar = document.getElementById('storiesBar');
+  if(!bar) return;
+  const ru = currentLang === 'ru';
+  const myStories = getMyStories();
+  const hasStory = myStories.length > 0;
+  const initial = ((currentUserName || (ru?'Я':'Me')).trim()[0] || (ru?'Я':'M')).toUpperCase();
+
+  bar.innerHTML = `
+    <div class="story-item" id="myStoryItem">
+      <div class="story-ring ${hasStory ? 'has-story' : ''}">
+        <div class="avatar g2" style="${myAvatarStyle()}">${myAvatarInnerHTML(initial)}</div>
+        ${!hasStory ? '<div class="story-add-badge">+</div>' : ''}
+      </div>
+      <div class="label">${ru ? 'Моя история' : 'My story'}</div>
+    </div>`;
+
+  const myItem = document.getElementById('myStoryItem');
+  myItem.onclick = () => {
+    if(getMyStories().length > 0){
+      openStoryViewer();
+    } else {
+      document.getElementById('storyFileInput').click();
+    }
+  };
+}
+
+function handleStoryFileSelected(event){
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if(!file) return;
+  if(!file.type.startsWith('image/') && !file.type.startsWith('video/')){
+    showToast(currentLang==='ru' ? 'Выберите фото или видео' : 'Please choose a photo or video');
+    return;
+  }
+  if(file.size > STORY_MAX_FILE_SIZE){
+    showToast(currentLang==='ru' ? 'Файл слишком большой' : 'File is too large');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingStoryMedia = { type: file.type.startsWith('video/') ? 'video' : 'image', dataUrl: reader.result };
+    openStoryComposer();
+  };
+  reader.onerror = () => showToast(currentLang==='ru' ? 'Не удалось прочитать файл' : 'Failed to read the file');
+  reader.readAsDataURL(file);
+}
+
+function openStoryComposer(){
+  if(!pendingStoryMedia) return;
+  const ru = currentLang === 'ru';
+  const overlay = document.createElement('div');
+  overlay.className = 'story-composer';
+  overlay.id = 'storyComposerOverlay';
+  const mediaHtml = pendingStoryMedia.type === 'video'
+    ? `<video src="${pendingStoryMedia.dataUrl}" controls autoplay muted playsinline></video>`
+    : `<img src="${pendingStoryMedia.dataUrl}">`;
+  overlay.innerHTML = `
+    <div class="story-composer-close" onclick="closeStoryComposer()">✕</div>
+    <div class="story-media-wrap">${mediaHtml}</div>
+    <div class="story-composer-bottom">
+      <input id="storyCaptionInput" maxlength="200" placeholder="${ru ? 'Добавить подпись...' : 'Add a caption...'}">
+      <button class="story-composer-send" onclick="postStory()" title="${ru ? 'Опубликовать' : 'Post'}">➤</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => { const inp = document.getElementById('storyCaptionInput'); if(inp) inp.focus(); }, 50);
+}
+function closeStoryComposer(){
+  const el = document.getElementById('storyComposerOverlay');
+  if(el) document.body.removeChild(el);
+  pendingStoryMedia = null;
+}
+function postStory(){
+  if(!pendingStoryMedia) return;
+  const captionInput = document.getElementById('storyCaptionInput');
+  const caption = captionInput ? captionInput.value.trim() : '';
+  const story = {
+    id: 'st_' + Date.now() + '_' + Math.floor(Math.random()*10000),
+    type: pendingStoryMedia.type,
+    dataUrl: pendingStoryMedia.dataUrl,
+    caption,
+    ts: Date.now()
+  };
+  const arr = getMyStoriesRaw();
+  arr.push(story);
+  saveMyStoriesRaw(arr);
+  closeStoryComposer();
+  renderStoriesBar();
+  showToast(currentLang==='ru' ? 'История опубликована ✨' : 'Story posted ✨');
+}
+
+function openStoryViewer(){
+  const stories = getMyStories();
+  if(!stories.length) return;
+  storyViewerState = { stories, index: 0, timer: null, paused: false };
+  const overlay = document.createElement('div');
+  overlay.className = 'story-viewer';
+  overlay.id = 'storyViewerOverlay';
+  document.body.appendChild(overlay);
+  renderStoryViewerFrame();
+}
+function closeStoryViewer(){
+  if(storyViewerState && storyViewerState.timer) clearInterval(storyViewerState.timer);
+  storyViewerState = null;
+  const el = document.getElementById('storyViewerOverlay');
+  if(el) document.body.removeChild(el);
+  renderStoriesBar();
+}
+function renderStoryViewerFrame(){
+  const st = storyViewerState;
+  if(!st) return;
+  const overlay = document.getElementById('storyViewerOverlay');
+  if(!overlay) return;
+  if(st.timer) clearInterval(st.timer);
+  const ru = currentLang === 'ru';
+  const story = st.stories[st.index];
+  const initial = ((currentUserName || (ru?'Я':'Me')).trim()[0] || (ru?'Я':'M')).toUpperCase();
+
+  const segsHtml = st.stories.map((s, i) => `
+    <div class="story-progress-seg ${i < st.index ? 'done' : ''}" data-i="${i}">
+      <div class="story-progress-fill" id="storySeg${i}"></div>
+    </div>`).join('');
+
+  const mediaHtml = story.type === 'video'
+    ? `<video src="${story.dataUrl}" autoplay playsinline id="storyMediaEl"></video>`
+    : `<img src="${story.dataUrl}" id="storyMediaEl">`;
+
+  overlay.innerHTML = `
+    <div class="story-progress-row">${segsHtml}</div>
+    <div class="story-viewer-header">
+      <div class="avatar g2" style="width:34px;height:34px;font-size:14px;${myAvatarStyle()}">${myAvatarInnerHTML(initial)}</div>
+      <div>
+        <div class="sv-name">${ru ? 'Моя история' : 'My story'}</div>
+        <div class="sv-time">${formatStoryTime(story.ts)}</div>
+      </div>
+      <div class="sv-spacer"></div>
+      <div class="sv-icon" onclick="event.stopPropagation(); deleteCurrentStory()" title="${ru ? 'Удалить' : 'Delete'}">🗑</div>
+      <div class="sv-icon" onclick="event.stopPropagation(); closeStoryViewer()" title="${ru ? 'Закрыть' : 'Close'}">✕</div>
+    </div>
+    <div class="story-viewer-media">
+      ${mediaHtml}
+      <div class="story-viewer-nav">
+        <div class="zone" onclick="storyViewerGo(-1)"></div>
+        <div class="zone" onclick="storyViewerGo(1)"></div>
+      </div>
+      ${story.caption ? `<div class="story-viewer-caption">${escapeHtml(story.caption)}</div>` : ''}
+    </div>`;
+
+  const durationMs = story.type === 'video' ? 15000 : 5000;
+  let elapsed = 0;
+  const stepMs = 60;
+  const fillEl = document.getElementById('storySeg' + st.index);
+  st.timer = setInterval(() => {
+    if(st.paused) return;
+    elapsed += stepMs;
+    const pct = Math.min(100, (elapsed / durationMs) * 100);
+    if(fillEl) fillEl.style.width = pct + '%';
+    if(elapsed >= durationMs){
+      storyViewerGo(1);
+    }
+  }, stepMs);
+
+  const mediaEl = document.getElementById('storyMediaEl');
+  if(mediaEl){
+    const pause = () => { st.paused = true; };
+    const resume = () => { st.paused = false; };
+    mediaEl.addEventListener('mousedown', pause);
+    mediaEl.addEventListener('touchstart', pause, {passive:true});
+    document.addEventListener('mouseup', resume, {once:true});
+    overlay.addEventListener('touchend', resume, {once:true});
+  }
+}
+function storyViewerGo(dir){
+  const st = storyViewerState;
+  if(!st) return;
+  const next = st.index + dir;
+  if(next < 0){ return; } // на первой истории — просто ничего не делаем при свайпе назад
+  if(next >= st.stories.length){ closeStoryViewer(); return; }
+  st.index = next;
+  renderStoryViewerFrame();
+}
+function deleteCurrentStory(){
+  const st = storyViewerState;
+  if(!st) return;
+  const story = st.stories[st.index];
+  const ru = currentLang === 'ru';
+  if(!window.confirm(ru ? 'Удалить эту историю?' : 'Delete this story?')) return;
+  let arr = getMyStoriesRaw().filter(s => s.id !== story.id);
+  saveMyStoriesRaw(arr);
+  showToast(ru ? 'История удалена' : 'Story deleted');
+  const remaining = getMyStories();
+  if(!remaining.length){ closeStoryViewer(); return; }
+  st.stories = remaining;
+  if(st.index >= st.stories.length) st.index = st.stories.length - 1;
+  renderStoryViewerFrame();
+}
 
 /* ---------------- ЧЕРНОВИКИ (архив чатов) И ЗАКРЕПЛЕНИЕ ---------------- */
 function getArchivedChats(){ try{ return JSON.parse(safeStorage.getItem('tg_archived_chats') || '[]'); }catch(e){ return []; } }
