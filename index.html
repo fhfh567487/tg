@@ -4537,6 +4537,39 @@ function renderContacts(filter, forGift=false){
 }
 function filterContacts(v, forGift=false){ renderContacts(v, forGift); }
 
+// подтягиваем в список чатов ВСЕХ уже зарегистрированных в приложении пользователей —
+// создаём (если ещё нет) общий документ чата с каждым из них, чтобы он сразу появился
+// в списке через уже существующую живую подписку watchDirectChats, без ручного добавления по номеру
+async function ensureChatsWithAllRegisteredUsers(myAccId){
+  if(!cloudReady || !myAccId) return;
+  try{
+    const snap = await db.collection('accounts').get();
+    const tasks = [];
+    snap.forEach(docSnap => {
+      const otherId = docSnap.id;
+      if(otherId === myAccId) return;
+      const data = docSnap.data() || {};
+      const chatDocId = [myAccId, otherId].sort().join('__');
+      const ref = db.collection('directChats').doc(chatDocId);
+      tasks.push(
+        ref.get().then(chatSnap => {
+          if(chatSnap.exists) return;
+          return ref.set({
+            participants: [myAccId, otherId],
+            participantNames: { [myAccId]: currentUserName, [otherId]: data.name || 'Пользователь' },
+            messages: [],
+            lastMessage: '',
+            lastTime: '',
+            createdAt: Date.now()
+          });
+        }).catch(e => console.warn('Не удалось добавить чат с зарегистрированным пользователем', otherId, e))
+      );
+    });
+    await Promise.all(tasks);
+  }catch(e){
+    console.warn('Не удалось загрузить список зарегистрированных пользователей:', e);
+  }
+}
 // поиск реального пользователя по номеру телефона / логину и создание (или открытие) общего чата с ним
 async function handleAddByPhone(){
   const input = document.getElementById('phoneAddInput');
@@ -5177,6 +5210,7 @@ async function completeAuth(name, userAccId, accData={}){
     watchIncomingCalls(userAccId);
     startPresenceHeartbeat(userAccId);
     startPresencePolling();
+    ensureChatsWithAllRegisteredUsers(userAccId); // подтягиваем в список чатов всех, кто уже зарегистрирован в приложении
   }
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('app').classList.remove('blurred');
