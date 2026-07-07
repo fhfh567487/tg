@@ -1597,7 +1597,15 @@ async function watchGlobalChannel(accIdVal){
       };
     });
     const last = messages[messages.length-1];
-    if(isChannelLeft('channel_global')){
+    const isAdminHere = accIdVal === (data.adminId || adminId);
+    if(isAdminHere){
+      // на всякий случай снимаем локальный флаг "покинул канал" — админ не должен быть в этом списке
+      const left = getLeftChannels();
+      if(left.includes('channel_global')) setLeftChannels(left.filter(id => id !== 'channel_global'));
+    }
+    // администратор канала не может "потерять" его — даже если локальный флаг "покинул канал"
+    // почему-то выставлен на этом устройстве, для админа он игнорируется
+    if(!isAdminHere && isChannelLeft('channel_global')){
       channelChats = [];
       mergeAndRenderChats();
       return;
@@ -1609,7 +1617,7 @@ async function watchGlobalChannel(accIdVal){
       isChannel: true,
       channelDocId: 'global',
       adminId: data.adminId || adminId,
-      isAdmin: accIdVal === (data.adminId || adminId),
+      isAdmin: isAdminHere,
       name: data.name || 'Все участники',
       description: data.description || '',
       preview: last ? (last.text || t('chatCreated')) : t('chatCreated'),
@@ -2163,6 +2171,7 @@ function leaveGroupOrChannel(id){
   if(!chat) return;
   const ru = currentLang === 'ru';
   const isChannel = !!chat.isChannel;
+  if(isChannel && chat.isAdmin){ showToast(ru ? 'Администратор не может покинуть свой канал' : "The admin can't leave their own channel"); return; }
   const confirmMsg = isChannel
     ? (ru ? 'Покинуть этот канал?' : 'Leave this channel?')
     : (ru ? 'Покинуть эту группу?' : 'Leave this group?');
@@ -4537,38 +4546,25 @@ function renderContacts(filter, forGift=false){
 }
 function filterContacts(v, forGift=false){ renderContacts(v, forGift); }
 
-// подтягиваем в список чатов ВСЕХ уже зарегистрированных в приложении пользователей —
-// создаём (если ещё нет) общий документ чата с каждым из них, чтобы он сразу появился
-// в списке через уже существующую живую подписку watchDirectChats, без ручного добавления по номеру
-async function ensureChatsWithAllRegisteredUsers(myAccId){
+// разовая чистка пустых личных чатов без единого сообщения — остались от прежней автодобавлялки
+// всех зарегистрированных пользователей. Запускается один раз на аккаунт (флаг в localStorage),
+// чтобы случайно не удалять пустые чаты, которые пользователь потом создаст вручную и просто ещё не написал в них
+async function cleanupEmptyAutoChatsOnce(myAccId){
   if(!cloudReady || !myAccId) return;
+  const flagKey = 'tg_empty_chats_cleaned_' + myAccId;
+  if(safeStorage.getItem(flagKey)) return;
   try{
-    const snap = await db.collection('accounts').get();
+    const snap = await db.collection('directChats').where('participants', 'array-contains', myAccId).get();
     const tasks = [];
     snap.forEach(docSnap => {
-      const otherId = docSnap.id;
-      if(otherId === myAccId) return;
       const data = docSnap.data() || {};
-      const chatDocId = [myAccId, otherId].sort().join('__');
-      const ref = db.collection('directChats').doc(chatDocId);
-      tasks.push(
-        ref.get().then(chatSnap => {
-          if(chatSnap.exists) return;
-          return ref.set({
-            participants: [myAccId, otherId],
-            participantNames: { [myAccId]: currentUserName, [otherId]: data.name || 'Пользователь' },
-            messages: [],
-            lastMessage: '',
-            lastTime: '',
-            createdAt: Date.now()
-          });
-        }).catch(e => console.warn('Не удалось добавить чат с зарегистрированным пользователем', otherId, e))
-      );
+      if(!data.messages || data.messages.length === 0){
+        tasks.push(docSnap.ref.delete().catch(e => console.warn('Не удалось удалить пустой чат', docSnap.id, e)));
+      }
     });
     await Promise.all(tasks);
-  }catch(e){
-    console.warn('Не удалось загрузить список зарегистрированных пользователей:', e);
-  }
+    safeStorage.setItem(flagKey, '1');
+  }catch(e){ console.warn('Не удалось выполнить очистку пустых чатов:', e); }
 }
 // поиск реального пользователя по номеру телефона / логину и создание (или открытие) общего чата с ним
 async function handleAddByPhone(){
@@ -5210,7 +5206,7 @@ async function completeAuth(name, userAccId, accData={}){
     watchIncomingCalls(userAccId);
     startPresenceHeartbeat(userAccId);
     startPresencePolling();
-    ensureChatsWithAllRegisteredUsers(userAccId); // подтягиваем в список чатов всех, кто уже зарегистрирован в приложении
+    cleanupEmptyAutoChatsOnce(userAccId); // разово подчищаем пустые чаты, созданные прежней автодобавлялкой
   }
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('app').classList.remove('blurred');
